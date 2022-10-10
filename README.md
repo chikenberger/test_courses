@@ -1,2 +1,6 @@
 # test_courses
-Educational courses website
+Educational courses website API (test project)
+
+Stack:
+Django
+Docker
