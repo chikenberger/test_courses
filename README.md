@@ -3,6 +3,7 @@ Educational courses website API (test project)
 
 #### Stack:
 - Django
+- Django Rest Framework
 - Docker
 
 ##### Инструкция для запуска
