@@ -16,7 +16,6 @@ from .models import (
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-#registration
 from xml.dom import ValidationErr
 
 
@@ -24,8 +23,6 @@ from xml.dom import ValidationErr
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = MyUser
         fields = ("email", "password", "is_teacher")
