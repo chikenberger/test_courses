@@ -6,35 +6,12 @@ from .models import (
     Lecture,
     LectureImage,
     LectureFile,
-    LectureText,
     Task,
     Grade,
     Comment,
 )
-
-# simple jwt 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
 
-from xml.dom import ValidationErr
-
-
-
-
-
-class RegistrationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MyUser
-        fields = ("email", "password", "is_teacher")
-    
-    def validate(self, args):
-        email = args.get('email', None)
-        if MyUser.objects.filter(email=email).exists():
-            raise serializers.ValidationError({'email': ('ERROR: user with this EMAIL already exists.')})
-        return super().validate(args)
-
-    def create(self, validated_data):
-        return MyUser.objects.create_user(**validated_data)
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -42,18 +19,21 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
 
-        # Add custom claims
-        token['name'] = user.name
-        # ...
-
+        token['email'] = user.email
+        token['is_teacher'] = user.is_teacher
+        
         return token
 
 
-class MyUserSerializer(serializers.ModelSerializer):
+class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
-        fields = ('email', 'is_teacher')
+        fields = ('email', 'password', 'is_teacher')
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MyUser
+        fields = ('email', 'is_teacher', 'courses')
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
@@ -63,39 +43,35 @@ class CourseSerializer(serializers.ModelSerializer):
 class ChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
-        fields = ('chapter_id', 'name', 'course')
+        fields = ('name', 'course')
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture
-        fields = ('lecture_id', 'name', 'chapter')
-
-class LectureTextSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LectureText
-        fields = ('text', 'lecture')
+        fields = '__all__'
 
 class LectureImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = LectureImage
-        fields = ('image', 'lecture')
+        fields = '__all__'
+
 
 class LectureFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = LectureFile
-        fields = ('file', 'lecture')
+        fields = '__all__'
 
 class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
-        fields = ('chapter', 'name', 'text', 'deadline')
+        fields = '__all__'
+
+class CommentSerializer(serializers.ModelSerializer):    
+    class Meta:
+        model = Comment
+        fields = '__all__'
 
 class GradeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Grade
-        fields = ('student', 'task', 'grade')
-
-class CommentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Comment
-        fields = ('data', 'author', 'text', 'task')
+        fields = '__all__'
