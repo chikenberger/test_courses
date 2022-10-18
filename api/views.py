@@ -721,7 +721,6 @@ class CreateSolution(APIView):
         
         if token_is_valid(token):
             request_body            = request.data
-            request_body['grade']   = 1
             request_body['course']  = course_pk
             request_body['task']    = task_pk
             request_body['student'] = str(user)
