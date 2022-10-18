@@ -1,8 +1,13 @@
+from xml.dom.pulldom import START_DOCUMENT
 from django.db import models
 
 # custom user model
 from django.contrib.auth.models import AbstractUser, PermissionsMixin
 from .managers import MyUserManager
+from django.utils import timezone
+
+
+
 
 
 
@@ -26,7 +31,7 @@ class Task(models.Model):
     chapter     = models.ForeignKey(Chapter, related_name='tasks', on_delete=models.CASCADE, null=True)
     name        = models.CharField(max_length=100)
     text        = models.TextField(blank=False)
-    deadline    = models.DateField(blank=False)
+    deadline    = models.DateTimeField(blank=False)
 
     def __str__(self):
         return self.name
@@ -56,28 +61,48 @@ class LectureFile(models.Model):
 
 
 class Comment(models.Model):
-    task    = models.ForeignKey(Task, related_name='comments',on_delete=models.CASCADE, null=True)
-    data    = models.DateField()
-    author  = models.EmailField()
-    text    = models.CharField(max_length=200)
+    task                = models.ForeignKey(Task, related_name='comments', on_delete=models.CASCADE, null=True)
+    date                = models.DateTimeField(default=timezone.now)
+    author              = models.EmailField()
+    is_course_author    = models.BooleanField(default=False)
+    text                = models.CharField(max_length=200)
 
     def __str__(self):
         return self.author
 
+
+
+
+"""
 class Grade(models.Model):
-    task    = models.ForeignKey(Task, related_name='grades', on_delete=models.CASCADE, null=True)
-    student = models.EmailField(blank=False, null=True)
-    grade   = models.SmallIntegerField(default=1)
+    course      = models.ForeignKey(Course, related_name='grades', on_delete=models.CASCADE, null=True)
+    task        = models.ForeignKey(Task, related_name='grades', on_delete=models.CASCADE, null=True)
+    student     = models.EmailField(blank=False, null=True)
+    grade       = models.SmallIntegerField(default=0)
 
     def __str__(self):
         return self.grade
+"""
+
+
+
+
+class Solution(models.Model):
+    course  = models.ForeignKey(Course, null=True, related_name='solutions', on_delete=models.CASCADE)
+    task    = models.ForeignKey(Task, null=True, related_name='solutions', on_delete=models.CASCADE)
+    file    = models.FileField()
+    student = models.EmailField(null=True)
+    grade   = models.SmallIntegerField(default=0)
+
+    def __str__(self):
+        return self.student
 
 
 class MyUser(AbstractUser, PermissionsMixin):
     username     = None
     email        = models.EmailField('Email', max_length=200, unique=True, help_text = 'Your email (Required)')
-    password     = models.CharField(max_length=200, help_text = 'Your password (Required)') 
-    is_teacher   = models.BooleanField(default=False)   
+    password     = models.CharField(max_length=200, help_text = 'Your password (Required)')
+    is_teacher   = models.BooleanField(default=False)
     
     courses      = models.ManyToManyField(Course, related_name='courses', blank=True)
 

@@ -7,8 +7,8 @@ from .models import (
     LectureImage,
     LectureFile,
     Task,
-    Grade,
     Comment,
+    Solution,
 )
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -30,48 +30,55 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = MyUser
         fields = ('email', 'password', 'is_teacher')
 
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
-        fields = ('email', 'is_teacher', 'courses')
+        fields = ('pk', 'email', 'password', 'is_teacher', 'courses')
+
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = ('name', 'author')
+        fields = ('pk', 'name', 'author')
+
 
 class ChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
-        fields = ('name', 'course')
+        fields = ('pk', 'name', 'course')
+
+
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture
-        fields = '__all__'
+        fields = ('pk', 'name', 'text', 'chapter')
 
 class LectureImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = LectureImage
         fields = '__all__'
 
-
 class LectureFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = LectureFile
         fields = '__all__'
 
+
+
 class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
-        fields = '__all__'
+        fields = ('pk', 'name', 'text', 'deadline', 'chapter')
+
 
 class CommentSerializer(serializers.ModelSerializer):    
     class Meta:
         model = Comment
-        fields = '__all__'
+        fields = ('pk', 'date', 'author', 'text', 'is_course_author', 'task')
 
-class GradeSerializer(serializers.ModelSerializer):
+class SolutionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Grade
-        fields = '__all__'
+        model = Solution
+        fields = ('pk', 'task', 'file', 'student', 'grade')
