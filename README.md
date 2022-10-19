@@ -1,2 +1,2 @@
 # test_courses
-Educational courses website
+Educational courses website api
