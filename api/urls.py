@@ -25,6 +25,14 @@ urlpatterns = [
     path('courses/<int:course_pk>/update/', views.UpdateCourse.as_view(), name='update-course'),
     path('courses/<int:course_pk>/delete/', views.DeleteCourse.as_view(), name='delete-course'),
 
+    path('courses/<int:course_pk>/applications/new/', views.ApplicateToCourse.as_view(), name='applicate-to-course'),
+    path('courses/<int:course_pk>/applications/', views.ListAllApplications.as_view(), name='list-all-applications'),
+    path('courses/<int:course_pk>/requests/<application_pk>/', views.ViewApplication.as_view(), name='view-application'),
+    path('courses/<int:course_pk>/requests/<application_pk>/approve/', views.ApproveApplication.as_view(), name='approve-application'),
+    path('courses/<int:course_pk>/requests/<application_pk>/delete/', views.DeleteApplication.as_view(), name='delete-application'),
+
+
+
     # chapter
     path('courses/<int:course_pk>/chapters/new/',\
          views.CreateChapter.as_view(), name='create-new-chapter'),
@@ -48,6 +56,14 @@ urlpatterns = [
         views.UpdateLecture.as_view(), name='update-lecture'),
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/delete/', \
         views.DeleteLecture.as_view(), name='delete-lecture'),
+
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/add/image', \
+        views.LectureAddFileImage.as_view(), name='lecture-add-image'),
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/add/file', \
+        views.LectureAddFileImage.as_view(), name='lecture-add-file'),
+
+
+
 
     # task
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/new/', \
@@ -85,7 +101,6 @@ urlpatterns = [
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/delete/', \
         views.DeleteSolution.as_view(), name='delete-solution'),
 
-
-    # grade
-
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/rate/',\
+        views.RateSolution.as_view(), name='rate-solution'),
 ]

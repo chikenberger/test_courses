@@ -20,6 +20,7 @@ from .models import (
     Task,
     Solution,
     Comment,
+    CourseApplication,
 )
 from .serializers import (
     CourseSerializer,
@@ -34,6 +35,7 @@ from .serializers import (
     TaskSerializer,
     SolutionSerializer,
     CommentSerializer,
+    CourseApplicationSerializer,
 )
 
 
@@ -265,8 +267,6 @@ class DeleteCourse(APIView):
 
 
 
-
-
 #
 #
 #
@@ -480,6 +480,72 @@ class DeleteLecture(APIView):
                 "Message": "Lecture successfuly deleted."
             }, status=status.HTTP_200_OK
         )
+
+
+
+
+
+class LectureAddFileImage(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        # pk_course для проверки является ли user автором курса
+        course_pk  = kwargs.get('course_pk', None)
+        lecture_pk = kwargs.get('lecture_pk', None)
+
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
+
+        course = Course.objects.get(pk=course_pk)
+        course_author = course.author
+
+        if str(user) == str(course_author): 
+            if token_is_valid(token):
+                request_body = request.data
+                request_body['lecture'] = lecture_pk
+                if request.data['image'] != None:
+                    serializer = LectureImageSerializer(data=request_body)
+                elif request.data['image'] != None:
+                    serializer = LectureFileSerializer(data=request_body)
+                if (serializer.is_valid()):
+                    serializer.save()
+                    return Response(
+                        {
+                            "Message": f"File added succesfully.",
+                            "File": serializer.data
+                        }, status=status.HTTP_201_CREATED
+                    )
+                return Response(
+                    {
+                        "Errors": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(
+                {
+                    "Error": "token is not valid.",
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+        return Response(
+            {
+                "Error": "you can create lectures only for your courses."
+            }, status=status.HTTP_403_FORBIDDEN
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -803,6 +869,143 @@ class DeleteSolution(APIView):
                 "Message": "Solution deleted successfuly."
             }, status=status.HTTP_200_OK
         )
+
+
+
+class RateSolution(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        solution_pk = kwargs.get('solution_pk', None)
+        course_pk   = kwargs.get('course_pk', None)
+        task_pk     = kwargs.get('task_pk', None)
+
+
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)      
+        course = Course.objects.get(pk=course_pk)
+
+        if str(user) == course.author:
+            solution = Solution.objects.get(pk=solution_pk)        
+   
+            request_data            = request.data
+            request_data['file']    = solution.file
+            request_data['course']  = course_pk
+            request_data['task']    = task_pk
+            request_data['student'] = solution.student
+
+            serializer = SolutionSerializer(solution, data=request_data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {
+                        "Message": "Solution rated successfuly.",
+                        "solution": serializer.data
+                    }, status=status.HTTP_200_OK
+                )
+            return Response(serializer.errors)
+
+        return Response(
+            {
+                "Error": "Only course author can rate students solutions."
+            }, status=status.HTTP_403_FORBIDDEN
+        )
+
+
+
+#
+#
+#
+#  APPLICATION 
+#
+#
+# make an application to a course (for students)
+class ApplicateToCourse(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        course_pk = kwargs.get('course_pk', None)
+        
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
+
+        if token_is_valid(token) == True:
+            request_body = {}
+            request_body['course'] = course_pk
+            request_body['student'] = user
+            serializer = CourseApplicationSerializer(data=request_body)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {
+                        "Message": "Your application submitted successfuly.",
+                        "Application": serializer.data
+                    }, status=status.HTTP_200_OK
+                )
+        else:
+            return Response(
+                {
+                    "Error": "token is not valid."
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+class ListAllApplications(APIView):
+    def get(self, request, format=json, *args, **kwargs):
+        course_pk = kwargs.get('course_pk', None)
+        applications = CourseApplication.objects.get(course=course_pk)
+        serializer = CourseApplicationSerializer(applications, many=True)
+        return Response(serializer)
+
+class ViewApplications(APIView):
+    def get(self, request, format=json, *args, **kwargs):
+        application_pk = kwargs.get('application_pk', None)
+        application = CourseApplication.objects.get(pk=application_pk)
+        serializer = CourseApplicationSerializer(application)
+        return Response(serializer)
+
+class ApproveApplication(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        course_pk = kwargs.get('course_pk', None)
+        
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
+
+        if token_is_valid(token) == True:
+            course = Course.objects.get(pk=course_pk)
+            if str(user) == course.author:
+                request_body = request.data
+                request_body['approved'] = True
+                serializer = CourseApplicationSerializer(request_body)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        {
+                            "Message": "Course approved successfuly.",
+                            "Application": serializer.data
+                        }
+                    )
+                else:
+                    return Response(serializer.errors)
+            else:
+                return Response(
+                    {
+                        "Error": "You are not a course author."
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {
+                    "Error": "token is not valid."
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+class DeleteApplication(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        application_pk = kwargs.get('application_pk', None)
+        application = CourseApplication.objects.get(pk=application_pk)
+        application.delete()
+        return Response(
+            {
+                "Message": "application deleted successfuly."
+            }, status=status.HTTP_200_OK
+        )
+
 
 
 

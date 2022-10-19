@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import (
+    CourseApplication,
     MyUser,
     Course,
     Chapter,
@@ -58,13 +59,12 @@ class LectureSerializer(serializers.ModelSerializer):
 class LectureImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = LectureImage
-        fields = '__all__'
+        fields = ('pk', 'image', 'lecture')
 
 class LectureFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = LectureFile
-        fields = '__all__'
-
+        fields = ('pk', 'file', 'lecture')
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -78,7 +78,14 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ('pk', 'date', 'author', 'text', 'is_course_author', 'task')
 
+
 class SolutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Solution
         fields = ('pk', 'task', 'file', 'student', 'grade')
+
+
+class CourseApplicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseApplication
+        course = '__all__'
