@@ -117,3 +117,12 @@ class MyUser(AbstractUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class CourseApplication(models.Model):
+    student     = models.ForeignKey(MyUser)
+    course      = models.ForeignKey(Course)
+    approved    = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.approved
