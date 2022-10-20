@@ -5,7 +5,7 @@
 - Django Rest Framework
 - Docker
 ##### Инструкция для запуска:
-    ###### MAC OS/ Linux(Ubuntu/Debian):
+    MAC OS/ Linux(Ubuntu/Debian):
           - 1) устанавливаем docker-compose
               - MAC OS
                   - brew install docker-compose
