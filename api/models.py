@@ -70,23 +70,6 @@ class Comment(models.Model):
     def __str__(self):
         return self.author
 
-
-
-
-"""
-class Grade(models.Model):
-    course      = models.ForeignKey(Course, related_name='grades', on_delete=models.CASCADE, null=True)
-    task        = models.ForeignKey(Task, related_name='grades', on_delete=models.CASCADE, null=True)
-    student     = models.EmailField(blank=False, null=True)
-    grade       = models.SmallIntegerField(default=0)
-
-    def __str__(self):
-        return self.grade
-"""
-
-
-
-
 class Solution(models.Model):
     course  = models.ForeignKey(Course, null=True, related_name='solutions', on_delete=models.CASCADE)
     task    = models.ForeignKey(Task, null=True, related_name='solutions', on_delete=models.CASCADE)
@@ -120,9 +103,17 @@ class MyUser(AbstractUser, PermissionsMixin):
 
 
 class CourseApplication(models.Model):
-    student     = models.ForeignKey(MyUser)
-    course      = models.ForeignKey(Course)
+    student     = models.ForeignKey(MyUser, related_name='applications', on_delete=models.CASCADE)
+    course      = models.ForeignKey(Course, related_name='applications', on_delete=models.CASCADE)
     approved    = models.BooleanField(default=False)
 
     def __str__(self):
         return self.approved
+
+class AverageCourseGrade(models.Model):
+    course  = models.ForeignKey(Course, related_name='grades', on_delete=models.CASCADE)
+    student = models.ForeignKey(MyUser, related_name='grades', on_delete=models.CASCADE)
+    grade   = models.SmallIntegerField(default=0)
+
+    def __str__(self):
+        return self.grade

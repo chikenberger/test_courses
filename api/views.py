@@ -9,6 +9,10 @@ import datetime
 
 from django.contrib.auth.hashers import make_password
 
+# average course grade
+from django.utils import timezone
+from django.db.models import Avg
+
 
 from .models import (
     MyUser,
@@ -21,6 +25,7 @@ from .models import (
     Solution,
     Comment,
     CourseApplication,
+    AverageCourseGrade,
 )
 from .serializers import (
     CourseSerializer,
@@ -36,10 +41,11 @@ from .serializers import (
     SolutionSerializer,
     CommentSerializer,
     CourseApplicationSerializer,
+    AverageCourseGradeSerializer,
 )
 
 
-
+"""
 # view all possibilities of this api
 class ApiOverview(APIView):
     def get(self, request, format=None):
@@ -50,7 +56,7 @@ class ApiOverview(APIView):
             'List of all users': '/api/all-users/',
         }
         return Response(api_urls)
-
+"""
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -481,10 +487,6 @@ class DeleteLecture(APIView):
             }, status=status.HTTP_200_OK
         )
 
-
-
-
-
 class LectureAddFileImage(APIView):
     def post(self, request, format=json, *args, **kwargs):
         # pk_course для проверки является ли user автором курса
@@ -528,20 +530,6 @@ class LectureAddFileImage(APIView):
                 "Error": "you can create lectures only for your courses."
             }, status=status.HTTP_403_FORBIDDEN
         )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -785,26 +773,36 @@ class CreateSolution(APIView):
         token = get_jwt_token(request)
         user = JWTAuthentication().get_user(token)
         
-        if token_is_valid(token):
-            request_body            = request.data
-            request_body['course']  = course_pk
-            request_body['task']    = task_pk
-            request_body['student'] = str(user)
 
-            serializer = SolutionSerializer(data=request_body)
-            if (serializer.is_valid()):
-                serializer.save()
+        if token_is_valid(token):
+            task = Task.objects.get(pk=task_pk)
+            current_date = timezone.now()
+            if current_date <= task.deadline:
+                request_body            = request.data.copy()
+                request_body['course']  = course_pk
+                request_body['task']    = task_pk
+                request_body['student'] = str(user)
+
+                serializer = SolutionSerializer(data=request_body)
+                if (serializer.is_valid()):
+                    serializer.save()
+                    return Response(
+                        {
+                            "Message": "Solution created succesfully.",
+                            "Solution": serializer.data
+                        }, status=status.HTTP_201_CREATED
+                    )
                 return Response(
                     {
-                        "Message": "Solution created succesfully.",
-                        "Solution": serializer.data
-                    }, status=status.HTTP_201_CREATED
+                        "Errors": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST
                 )
-            return Response(
-                {
-                    "Errors": serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST
-            )
+            else:
+                return Response(
+                    {
+                        "Error": "deadline is expired."
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
         return Response(
             {
                 "Error": "token is not valid.",
@@ -884,13 +882,15 @@ class RateSolution(APIView):
         course = Course.objects.get(pk=course_pk)
 
         if str(user) == course.author:
-            solution = Solution.objects.get(pk=solution_pk)        
+            solution = Solution.objects.get(pk=solution_pk)
    
             request_data            = request.data
             request_data['file']    = solution.file
             request_data['course']  = course_pk
             request_data['task']    = task_pk
             request_data['student'] = solution.student
+
+
 
             serializer = SolutionSerializer(solution, data=request_data)
             if serializer.is_valid():
@@ -926,10 +926,14 @@ class ApplicateToCourse(APIView):
         user = JWTAuthentication().get_user(token)
 
         if token_is_valid(token) == True:
+            user_instance = MyUser.objects.get(email=str(user))
             request_body = {}
             request_body['course'] = course_pk
-            request_body['student'] = user
+            request_body['student'] = user_instance.pk
             serializer = CourseApplicationSerializer(data=request_body)
+            print('\n' * 10)
+            print('USER =', user_instance)
+            print('\n' * 5)
             if serializer.is_valid():
                 serializer.save()
                 return Response(
@@ -938,6 +942,8 @@ class ApplicateToCourse(APIView):
                         "Application": serializer.data
                     }, status=status.HTTP_200_OK
                 )
+            else:
+                return Response(serializer.errors)
         else:
             return Response(
                 {
@@ -948,30 +954,37 @@ class ApplicateToCourse(APIView):
 class ListAllApplications(APIView):
     def get(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk', None)
-        applications = CourseApplication.objects.get(course=course_pk)
+        applications = CourseApplication.objects.filter(course=course_pk)
         serializer = CourseApplicationSerializer(applications, many=True)
-        return Response(serializer)
+        return Response(serializer.data)
 
 class ViewApplications(APIView):
     def get(self, request, format=json, *args, **kwargs):
         application_pk = kwargs.get('application_pk', None)
         application = CourseApplication.objects.get(pk=application_pk)
         serializer = CourseApplicationSerializer(application)
-        return Response(serializer)
+        return Response(serializer.data)
 
 class ApproveApplication(APIView):
     def post(self, request, format=json, *args, **kwargs):
-        course_pk = kwargs.get('course_pk', None)
+        application_pk  = kwargs.get('application_pk', None)
         
         token = get_jwt_token(request)
         user = JWTAuthentication().get_user(token)
 
+        application = CourseApplication.objects.get(pk=application_pk)
+
         if token_is_valid(token) == True:
-            course = Course.objects.get(pk=course_pk)
-            if str(user) == course.author:
-                request_body = request.data
-                request_body['approved'] = True
-                serializer = CourseApplicationSerializer(request_body)
+            if str(user) == application.course.author:
+                application = CourseApplication.objects.get(pk=application_pk)
+                
+                request_body = {}
+                request_body['course']      = application.course.pk
+                request_body['student']     = application.student.pk
+                request_body['approved']    = True
+
+                serializer = CourseApplicationSerializer(application, data=request_body)
+                
                 if serializer.is_valid():
                     serializer.save()
                     return Response(
@@ -1010,3 +1023,82 @@ class DeleteApplication(APIView):
 
 
 
+
+
+#
+#
+# COURSE GRADE
+#
+#
+
+class CountAverageCourseGrade(APIView):
+    def get(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)
+        student_pk  = kwargs.get('student_pk', None)
+
+        student_course_application = CourseApplication.objects.get(
+            student=student_pk, 
+            course=course_pk,
+            approved=True
+        )
+
+        
+        student_email = MyUser.objects.get(pk=student_pk).email
+
+        if student_course_application != None:
+
+            all_student_solutions = Solution.objects.filter(
+                course=course_pk,
+                student=student_email
+            )
+
+            print(all_student_solutions)
+            
+            if all_student_solutions.exists():
+                average_course_grade = all_student_solutions.aggregate(Avg('grade'))
+
+                request_body = {}
+                request_body['course']  = course_pk
+                request_body['student'] = student_pk
+                request_body['grade'] = average_course_grade.get('grade__avg')
+
+                serializer = AverageCourseGradeSerializer(data=request_body)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data)
+            else:
+                raise NotFound(detail="Error 404: page not found.", code=404)
+        else:
+            raise NotFound(detail="Error 404: page not found.", code=404)
+
+
+
+
+class GetAverageCourseGrade(APIView):
+    def get(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)
+        student_pk  = kwargs.get('student_pk', None)
+
+        course_grade = AverageCourseGrade.objects.get(
+            course=course_pk,
+            student=student_pk
+        )
+
+        serializer = AverageCourseGradeSerializer(data=course_grade)
+        return Response(serializer.data)
+
+
+
+
+
+
+
+
+
+
+class GetAllStudentsCourseGrades(APIView):
+    def get(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)        
+        all_student_solutions = Solution.objects.filter(course=course_pk)
+        serializer = AverageCourseGradeSerializer(all_student_solutions, many=True)
+        return Response(serializer.data)
