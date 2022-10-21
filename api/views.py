@@ -152,6 +152,12 @@ def response_token_expired():
                     "Error": "token is not valid.",
                 }, status=status.HTTP_401_UNAUTHORIZED
             )
+def response_success():
+    return Response(
+        {
+            "Message": "operation completed successfuly."
+        }, status=status.HTTP_401_UNAUTHORIZED
+    )
 
 # CRUD ADDITIONAL FUNCTIONS
 def created_updated_responses(created_or_updated, serializer):
@@ -1053,4 +1059,4 @@ class DeleteAverageGrade(APIView):
                 course_grade.delete()
                 return response_success
             return response_forbidden
-        return response_token_expired            
+        return response_token_expired
