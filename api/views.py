@@ -229,7 +229,7 @@ def is_course_author(request, course_pk):
 
 #
 #
-# USER CRUD
+# USER
 #
 #
 
@@ -349,7 +349,6 @@ class DeleteCourse(APIView):
 
 # create a new chapter for a course
 class CreateChapter(APIView):
-    serializer_class = ChapterSerializer
     def post(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk', None)
         token = get_jwt_token(request)
@@ -397,12 +396,14 @@ class UpdateChapter(APIView):
 class DeleteChapter(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk')
+        chapter_pk = kwargs.get('chapter_pk')
+        token = get_jwt_token(request)
 
-        if is_course_author(request, course_pk):
-            chapter_pk = kwargs.get('chapter_pk')
-            return delete_instance(chapter_pk, Chapter)
-        else:
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                return delete_instance(Chapter, chapter_pk)
             return response_forbidden
+        return response_token_expired
 
 
 
@@ -415,131 +416,65 @@ class DeleteChapter(APIView):
 
 # create a new lecture
 class CreateLecture(APIView):
-    serializer_class = LectureSerializer
     def post(self, request, format=json, *args, **kwargs):
-        
-        # pk_course для проверки является ли user автором курса
-        course_pk  = kwargs.get('course_pk', None)
-
-
-        # pk_chapter для добавления в request для LectureSerialzier 
-        chapter_pk = kwargs.get('chapter_pk', None)
-
+        course_pk = kwargs.get('course_pk')
+        chapter_pk = kwargs.get('chapter_pk')
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
-        
-        is_teacher = token['is_teacher']
 
-        if is_teacher == True:
+        if is_course_author(request, course_pk):
             if token_is_valid(token):
-                course = get_object_or_404(
-                    Course,
-                    pk=course_pk
-                )                   
-                course_author = course.author
-                if str(user) == str(course_author): 
-                    request_body = request.data
-                    request_body['chapter'] = chapter_pk
-                    serializer = LectureSerializer(data=request_body)
-                    if (serializer.is_valid()):
-                        serializer.save()
-                        return Response(
-                            {
-                                "Message": f"Task '{request.data['name']}' created succesfully.",
-                                "Lecture": serializer.data
-                            }, status=status.HTTP_201_CREATED
-                        )
-                    return Response(
-                        {
-                            "Errors": serializer.errors
-                        }, status=status.HTTP_400_BAD_REQUEST
-                    )
-                return Response(
-                    {
-                        "Error": "you can create lectures only for your courses."
-                    }, status=status.HTTP_403_FORBIDDEN
-                )
-            return Response(
-                {
-                    "Error": "token is not valid.",
-                }, status=status.HTTP_401_UNAUTHORIZED
-            )
-        return Response(
-            { 
-                "Error": "Only teachers are allowed to create lectures.",
-            }, status=status.HTTP_403_FORBIDDEN
-        )
+                request_body = request.data
+                request_body['chapter'] = chapter_pk
+                serializer = LectureSerializer(data=request_body)
+                return create_or_update('create', serializer)
+            return response_token_expired
+        return response_forbidden
 
 # list all lectures
 class ListAllLectures(APIView):
-    serializer_class = LectureSerializer
     def get(self, request, format=json, *args, **kwargs):
-        chapter_pk = kwargs.get('chapter_pk', None)
-        chapter = get_object_or_404(
-            Chapter,
-            pk=chapter_pk
-        )             
-        lectures = Lecture.objects.filter(chapter=chapter)
+        chapter_pk = kwargs.get('chapter_pk')
+        lectures = Lecture.objects.filter(chapter=chapter_pk)
         serializer = LectureSerializer(lectures, many=True)
         return Response(serializer.data)
 
 # view 1 lecture
 class ViewLecture(APIView):
-    serializer_class = LectureSerializer
     def get(self, request, format=json, *args, **kwargs):
-        lecture_pk = kwargs.get('lecture_pk', None)
-        lecture = get_object_or_404(
-            Lecture,
-            pk=lecture_pk
-        )
-        serializer = LectureSerializer(lecture, many=False)
-        return Response(serializer.data)
+        lecture_pk = kwargs.get('lecture_pk')
+        return get_instance_info(Lecture, lecture_pk)
 
 # update course info
 class UpdateLecture(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk  = kwargs.get('course_pk', None)
         lecture_pk = kwargs.get('lecture_pk', None)
-
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
 
-        course = get_object_or_404(
-            Course,
-            pk=course_pk
-        )
-
-        lecture = get_object_or_404(
-            Lecture,
-            pk=lecture_pk
-        )
-        
-        serializer = LectureSerializer(lecture, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "Message": "Lecture modified successfuly.",
-                    "lecture": serializer.data
-                }
-            )
-        return Response(serializer.errors)
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                lecture = get_object_or_404(
+                    Lecture,
+                    pk=lecture_pk
+                )
+                serializer = LectureSerializer(lecture, data=request.data)
+                return create_or_update('update', serializer)
+            return response_forbidden
+        return response_token_expired   
 
 # delete lecture
 class DeleteLecture(APIView):
     serializer_class = LectureSerializer
     def post(self, request, format=json, *args, **kwargs):
+        course_pk  = kwargs.get('course_pk', None)
         lecture_pk = kwargs.get('lecture_pk', None)
-        lecture = get_object_or_404(
-            Lecture,
-            pk=lecture_pk
-        )
-        lecture.delete()
-        return Response(
-            {
-                "Message": "Lecture successfuly deleted."
-            }, status=status.HTTP_200_OK
-        )
+        token = get_jwt_token(request)
+
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                return delete_instance(Lecture, lecture_pk)
+            return response_forbidden
+        return response_token_expired
 
 
 
