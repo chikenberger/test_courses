@@ -569,117 +569,65 @@ class DeleteLectureFileImage(APIView):
 
 
 
-
-
-
-#
 #
 #
 # TASK CRUD
 #
 #
+
 # create a new task
 class CreateTask(APIView):
     serializer_class = TaskSerializer
     def post(self, request, format=json, *args, **kwargs):
-        
-        # pk_course для проверки является ли user автором курса
-        course_pk  = kwargs.get('course_pk', None)
- 
-        # pk_chapter для добавления в request для TaskSerialzier
-        chapter_pk = kwargs.get('chapter_pk', None)
-
+        course_pk = kwargs.get('course_pk')
+        chapter_pk = kwargs.get('chapter_pk')
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
-        
-        is_teacher = token['is_teacher']
 
-        if is_teacher == True:
-            if token_is_valid(token):
-                course = get_object_or_404(
-                    Course,
-                    pk=course_pk
-                )
-                course_author = course.author
-                if str(user) == str(course_author): 
-                    request_body = request.data
-                    request_body['chapter'] = chapter_pk
-                    serializer = TaskSerializer(data=request_body)
-                    if (serializer.is_valid()):
-                        serializer.save()
-                        return Response(
-                            {
-                                "Message": f"Task '{request.data['name']}' created succesfully.",
-                                "Task": serializer.data
-                            }, status=status.HTTP_201_CREATED
-                        )
-                    return Response(
-                        {
-                            "Errors": serializer.errors
-                        }, status=status.HTTP_400_BAD_REQUEST
-                    )
-                return Response(
-                    {
-                        "Error": "you can create lectures only for your courses."
-                    }, status=status.HTTP_403_FORBIDDEN
-                )
-            return Response(
-                {
-                    "Error": "token is not valid.",
-                }, status=status.HTTP_401_UNAUTHORIZED
-            )
-        return Response(
-            { 
-                "Error": "Only teachers are allowed to create lectures.",
-            }, status=status.HTTP_403_FORBIDDEN
-        )
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                request_body = request.data
+                request_body['chapter'] = chapter_pk
+                serializer = TaskSerializer(data=request_body)
+                return create_or_update('create', serializer)
+            return response_forbidden
+        return response_token_expired
 
 # list all tasks
 class ListAllTasks(APIView):
     serializer_class = TaskSerializer
     def get(self, request, format=json, *args, **kwargs):
         chapter_pk = kwargs.get('chapter_pk', None)
-        chapter = get_object_or_404(
-            Chapter,
-            pk=chapter_pk
-        )
-        tasks = Task.objects.filter(chapter=chapter)
+        tasks = Task.objects.filter(chapter=chapter_pk)
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
 
-# view 1 task
+# get task info
 class ViewTask(APIView):
     serializer_class = TaskSerializer
     def get(self, request, format=json, *args, **kwargs):
         task_pk = kwargs.get('task_pk', None)
-        task = get_object_or_404(
-            Task,
-            pk=task_pk
-        )
-        serializer = TaskSerializer(task, many=False)
-        return Response(serializer.data)
+        return get_instance_info(Task, task_pk)
 
 # update course info
 class UpdateTask(APIView):
     def post(self, request, format=json, *args, **kwargs):
-        task_pk = kwargs.get('task_pk', None)
-        task = get_object_or_404(
-            Task,
-            pk=task_pk
-        )
+        course_pk = kwargs.get('course_pk')
+        task_pk   = kwargs.get('task_pk')
 
-        serializer = TaskSerializer(task, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "Message": "Task modified successfuly.",
-                    "task": serializer.data
-                }
-            )
-        return Response(serializer.errors)
+        token = get_jwt_token(request)
 
-# delete 1 task
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                task = get_object_or_404(
+                    Task,
+                    pk=task_pk
+                )
+                serializer = TaskSerializer(task, data=request.data)
+                return create_or_update('update', serializer)
+            return response_forbidden
+        return response_token_expired
+
+# delete a task
 class DeleteTask(APIView):
     serializer_class = TaskSerializer
     def post(self, request, format=json, *args, **kwargs):
@@ -1022,10 +970,10 @@ class RateSolution(APIView):
 
 #
 #
-#
 #  APPLICATION 
 #
 #
+
 # make an application to a course (for students)
 class ApplicateToCourse(APIView):
     def post(self, request, format=json, *args, **kwargs):
@@ -1206,10 +1154,6 @@ class DeleteApplication(APIView):
                     "Error": "token is not valid."
                 }, status=status.HTTP_401_UNAUTHORIZED
             )
-
-
-
-
 
 
 
