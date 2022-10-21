@@ -972,27 +972,22 @@ class CountAverageCourseGrade(APIView):
         course_pk   = kwargs.get('course_pk', None)
         student_pk  = kwargs.get('student_pk', None)
 
-        student_course_application = get_object_or_404(
+        token = get_jwt_token(request)
+        user  = get_user_email(token)
+
+        student_application = get_object_or_404(
             CourseApplication,
             student=student_pk, 
             course=course_pk,
             approved=True
         )
 
-        student_email = get_object_or_404(
-            MyUser,
-            pk=student_pk
-        )
-        student_email = student_email.email
-
-        if student_course_application != None:
+        if user == student_application.student.email or user == student_application.course.author:
 
             all_student_solutions = Solution.objects.filter(
                 course=course_pk,
-                student=student_email
+                student=student_application.student.email
             )
-
-            print(all_student_solutions)
             
             if all_student_solutions.exists():
                 average_course_grade = all_student_solutions.aggregate(Avg('grade'))
@@ -1003,14 +998,9 @@ class CountAverageCourseGrade(APIView):
                 request_body['grade'] = average_course_grade.get('grade__avg')
 
                 serializer = AverageCourseGradeSerializer(data=request_body)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(serializer.data)
-            else:
-                raise NotFound(detail="Error 404: page not found.", code=404)
-        else:
+                return create_or_update('create', serializer)
             raise NotFound(detail="Error 404: page not found.", code=404)
-
+        return response_forbidden
 
 class GetAverageCourseGrade(APIView):
     def get(self, request, format=json, *args, **kwargs):
@@ -1022,36 +1012,24 @@ class GetAverageCourseGrade(APIView):
             course=course_pk,
             student=student_pk
         )
-
         serializer = AverageCourseGradeSerializer(course_grade)
-        
         return Response(serializer.data)
 
 class GetAllStudentsCourseGrades(APIView):
     def get(self, request, format=json, *args, **kwargs):
+        course_pk = kwargs.get('course_pk', None)
 
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
+        user  = get_user_email(token)
 
         if token_is_valid(token):
-            course_pk = kwargs.get('course_pk', None)
             course = Course.objects.get(pk=course_pk)
-            if course.author == str(user):
+            if user == course.author:
                 all_students_solutions = Solution.objects.filter(course=course_pk)
                 serializer = AverageCourseGradeSerializer(all_students_solutions, many=True)
                 return Response(serializer.data)
-            else:
-                return Response(
-                    {
-                        'Error': 'only teachers allowed to this page.'
-                    }, status=status.HTTP_403_FORBIDDEN
-                )
-        else:
-            return Response(
-                {
-                    'Error': 'token is not valid.'
-                }, status=status.HTTP_401_UNAUTHORIZED
-            )
+            return response_forbidden
+        return response_token_expired
 
 class DeleteAverageGrade(APIView):
     def post(self, request, format=json, *args, **kwargs):
@@ -1059,29 +1037,20 @@ class DeleteAverageGrade(APIView):
         student_pk  = kwargs.get('student_pk', None)
 
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
+        user  = get_user_email(token)
 
         if token_is_valid(token):
             course = get_object_or_404(
                 Course,
                 pk=course_pk
             )
-            if course.author == str(user):
+            if user == course.author:
                 course_grade = get_object_or_404(
                     AverageCourseGrade,
                     course=course_pk,
                     student=student_pk
                 )
                 course_grade.delete()
-            else:
-                return Response(
-                    {
-                        'Error': 'only teachers are allowed to view this page.'
-                    }, status=status.HTTP_200_OK
-                )
-
-            return Response(
-                {
-                    "Message": "average grade successfuly deleted.",
-                }, status=status.HTTP_200_OK
-            )
+                return response_success
+            return response_forbidden
+        return response_token_expired            
