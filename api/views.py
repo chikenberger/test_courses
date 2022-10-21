@@ -478,30 +478,23 @@ class DeleteLecture(APIView):
 
 
 
-
 #
 #
 # LECTURE FILE/IMAGE CRUD
 #
 #
 
+# (create)
 class LectureAddFileImage(APIView):
     def post(self, request, format=json, *args, **kwargs):
-        # pk_course для проверки является ли user автором курса
         course_pk  = kwargs.get('course_pk', None)
         lecture_pk = kwargs.get('lecture_pk', None)
         file_type  = kwargs.get('file_type', None)
-
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
 
-        course = get_object_or_404(
-            Course,
-            pk=course_pk
-        )
-        
-        if str(user) == str(course.author): 
+        if is_course_author(request, course_pk):
             if token_is_valid(token):
+
                 request_body = request.data.copy()
                 request_body['lecture'] = lecture_pk
 
@@ -510,30 +503,10 @@ class LectureAddFileImage(APIView):
                 if file_type == 'file':
                     serializer = LectureFileSerializer(data=request_body)
 
-                if (serializer.is_valid()):
-                    serializer.save()
-                    return Response(
-                        {
-                            "Message": f"{file_type} added succesfully.",
-                            f"{file_type}": serializer.data
-                        }, status=status.HTTP_201_CREATED
-                    )
-                return Response(
-                    {
-                        "Errors": serializer.errors
-                    }, status=status.HTTP_400_BAD_REQUEST
-                )
-            return Response(
-                {
-                    "Error": "token is not valid.",
-                }, status=status.HTTP_401_UNAUTHORIZED
-            )
-        return Response(
-            {
-                "Error": f"you can add {file_type} only for your lectures."
-            }, status=status.HTTP_403_FORBIDDEN
-        )
-
+                serializer = LectureSerializer(data=request_body)
+                return create_or_update('create', serializer)
+            return response_token_expired
+        return response_forbidden
 
 class GetLectureFileImage(APIView):
     def get(self, request, format=json, *args, **kwargs):
@@ -541,74 +514,58 @@ class GetLectureFileImage(APIView):
         file_pk     = kwargs.get('file_pk', None)
 
         if file_type == 'image':
-            file_instance = get_object_or_404(
-                LectureImage,
-                pk=file_pk
-            )
-            serializer = LectureImageSerializer(file_instance, many=False)
+            return get_instance_info(LectureImage, file_pk)
         elif file_type == 'file':
-            file_instance = get_object_or_404(
-                LectureFile,
-                pk=file_pk
-            )
-            serializer = LectureFileSerializer(file_instance, many=False)
-        
-        return Response(serializer.data)
-
+            return get_instance_info(LectureFile, file_pk)
 
 class UpdateLectureFileImage(APIView):
     def post(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)
         file_type   = kwargs.get('file_type', None)
         file_pk     = kwargs.get('file_pk', None)
 
-        if file_type == 'image':
-            file_instance = get_object_or_404(
-                LectureImage,
-                pk=file_pk
-            )
+        token = get_jwt_token(request)
 
-            serializer = LectureImageSerializer(file_instance, data=request.data)
-        elif file_type == 'file':
-            file_instance = get_object_or_404(
-                LectureFile,
-                pk=file_pk
-            )
-            serializer = LectureFileSerializer(file_instance, data=request.data)
-        
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "Message": f"{file_type} modified successfuly.",
-                    f"{file_type}": serializer.data
-                }, status=status.HTTP_200_OK
-            )
+        if is_course_author(request, course_pk):
+            if token_is_valid(token):
+
+                if file_type == 'image':
+                    file_instance = get_object_or_404(
+                        LectureImage,
+                        pk=file_pk
+                    )
+                    serializer = LectureImageSerializer(file_instance, data=request.data)
+
+                elif file_type == 'file':
+                    file_instance = get_object_or_404(
+                        LectureFile,
+                        pk=file_pk
+                    )
+                    serializer = LectureFileSerializer(file_instance, data=request.data)
+
+                return create_or_update('update', serializer)
+
+            return response_token_expired
+        return response_forbidden
         
         return Response(serializer.data)
 
 class DeleteLectureFileImage(APIView):
     def post(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)
         file_type   = kwargs.get('file_type', None)
         file_pk     = kwargs.get('file_pk', None)
-
-        if file_type == 'image':
-            file_instance = get_object_or_404(
-                LectureImage,
-                pk=file_pk
-            )
-        elif file_type == 'file':
-            file_instance = get_object_or_404(
-                LectureFile,
-                pk=file_pk
-            )        
         
-        file_instance.delete()
+        token = get_jwt_token(request)
 
-        return Response(
-            {
-                "Message": f"{file_type} deleted successfuly."
-            }, status=status.HTTP_200_OK
-        )
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                if file_type == 'image':
+                    return delete_instance(LectureImage, file_pk)
+                elif file_type == 'file':
+                    return delete_instance(LectureFile, file_pk)
+            return response_forbidden
+        return response_token_expired
 
 
 
@@ -726,21 +683,15 @@ class UpdateTask(APIView):
 class DeleteTask(APIView):
     serializer_class = TaskSerializer
     def post(self, request, format=json, *args, **kwargs):
-        task_pk = kwargs.get('task_pk', None)
-        task = get_object_or_404(
-            Task,
-            pk=task_pk
-        )
-        task.delete()
-        return Response(
-            {
-                "Message": "Task deleted successfuly."
-            }, status=status.HTTP_200_OK
-        )
+        course_pk = kwargs.get('course_pk')
+        task_pk = kwargs.get('task_pk')
+        token = get_jwt_token(request)
 
-
-
-
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                return delete_instance(Task, task_pk)
+            return response_forbidden
+        return response_token_expired
 
 
 
@@ -749,6 +700,7 @@ class DeleteTask(APIView):
 # COMMENT CRUD
 #
 #
+
 # create a new comment
 class CreateComment(APIView):
     serializer_class = CommentSerializer
@@ -849,18 +801,17 @@ class UpdateComment(APIView):
 
 class DeleteComment(APIView):
     def post(self, request, format=json, *args, **kwargs):
+        course_pk = kwargs.get('course_pk')
         comment_pk = kwargs.get('comment_pk', None)
-        comment = get_object_or_404(
-            Comment,
-            pk=comment_pk
-        )
-        
-        comment.delete()
-        return Response(
-            {
-                "Message": "Comment deleted successfuly."
-            }, status=status.HTTP_200_OK
-        )
+        token = get_jwt_token(request)
+
+        if token_is_valid(token):
+            if is_course_author(request, course_pk):
+                return delete_instance(Comment, comment_pk)
+            return response_forbidden
+        return response_token_expired
+
+
 
 
 #
