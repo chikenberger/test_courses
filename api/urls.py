@@ -103,7 +103,7 @@ urlpatterns = [
     path('courses/<int:course_pk>/applications/', \
         views.ListAllApplications.as_view(), name='list-all-applications'),
     path('courses/<int:course_pk>/applications/<application_pk>/', \
-        views.ViewApplications.as_view(), name='view-application'),
+        views.ViewApplication.as_view(), name='view-application'),
     path('courses/<int:course_pk>/applications/<application_pk>/approve/', \
         views.ApproveApplication.as_view(), name='approve-application'),
     path('courses/<int:course_pk>/applications/<application_pk>/delete/', \

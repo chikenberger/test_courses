@@ -1,4 +1,5 @@
 import json
+from turtle import update
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
@@ -13,9 +14,6 @@ from django.contrib.auth.hashers import make_password
 # average course grade
 from django.utils import timezone
 from django.db.models import Avg
-
-from api.managers import MyUserManager
-
 
 from .models import (
     MyUser,
@@ -123,6 +121,99 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 
 
+def get_jwt_token(request):
+    header          = JWTAuthentication().get_header(request)
+    raw_token       = JWTAuthentication().get_raw_token(header)
+    validated_token = JWTAuthentication().get_validated_token(raw_token)
+    return validated_token
+
+def get_user_email(token):
+    user = JWTAuthentication().get_user(token)
+    return str(user)
+
+def token_is_valid(token):
+    expiration_date = token.payload['exp']
+    current_date    = int(datetime.datetime.now().timestamp())
+
+    if current_date <= expiration_date:
+        return True
+    return False
+
+def is_course_author(course_pk, user_email):
+    course = Course.objects.get(pk=course_pk)
+    if user_email == course.author:
+        return True
+    return False
+
+def response_forbidden():
+    return Response(
+                {
+                    'Message':'You are not allowed to do this.',
+                }, status=status.HTTP_403_FORBIDDEN
+            )
+
+def created_updated_responses(created_or_updated, serializer):
+    code = status.HTTP_200_OK
+    if created_or_updated == 'create':
+        code = status.HTTP_201_CREATED
+    return Response(
+            {
+                'Message': f"instance {created_or_updated}d successfuly.",
+                'info': serializer.data
+            }, status=code
+        )
+
+def create_or_update(create_or_update, serializer):
+    if serializer.is_valid():
+        serializer.save()
+        return created_updated_responses(create_or_update)
+    return serializer.errors()
+
+def delete_instance(instance_pk, instance_model):
+    instance = get_object_or_404(
+        instance_model,
+        pk=instance_pk
+    )
+    instance.delete()
+    return Response(
+        {
+            "Message": "Instance deleted successfuly."
+        }, status=status.HTTP_200_OK
+    )
+
+
+def get_instance_info(instance_model, instance_pk):
+    instance = get_object_or_404(
+        instance_model,
+        pk=instance_pk
+    )
+    if instance_model == MyUser:
+        serializer = UserSerializer(instance)
+    elif instance_model == Course:
+        serializer = CourseSerializer(instance)
+    elif instance_model == Chapter:
+        serializer = ChapterSerializer(instance)
+    elif instance_model == Lecture:
+        serializer = LectureSerializer(instance)
+    elif instance_model == LectureImage:
+        serializer = LectureImageSerializer(instance)
+    elif instance_model == LectureFile:
+        serializer = LectureFileSerializer(instance)
+    elif instance_model == Task:
+        serializer = TaskSerializer(instance)
+    elif instance_model == Solution:
+        serializer = SolutionSerializer(instance)
+    elif instance_model == Comment:
+        serializer = CommentSerializer(instance)
+    elif instance_model == CourseApplication:
+        serializer = CourseApplicationSerializer(instance)
+    elif instance_model == AverageCourseGrade:
+        serializer = AverageCourseGradeSerializer(instance)
+    return Response(serializer.data)
+
+
+
+
 
 
 #
@@ -137,16 +228,8 @@ class UserRegistrationView(APIView):
 
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
-        if (serializer.is_valid()):
-            serializer.save()
-            response = Response(
-                {
-                    "Message": "User created succesfully.",
-                    "User": serializer.data
-                }, status=status.HTTP_201_CREATED
-            )
-            return response
-        return Response({"Errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        return create_or_update('create', serializer)
+
 
 #list all users
 class ListRequestedUsers(APIView):
@@ -166,84 +249,29 @@ class ListRequestedUsers(APIView):
 
 # view info of 1 user
 class ViewUserInfo(APIView):
-    serializer_class = UserSerializer
     def get(self, request, format=json, *args, **kwargs):
         user_pk = kwargs.get('user_pk', None)
-        
-        print('USER PK =', user_pk)
-        print('KWARGS =', kwargs)
-
-        user = get_object_or_404(
-            MyUser,
-            pk=user_pk
-        )
-
-        serializer = UserSerializer(user, many=False)
-        return Response(serializer.data)
+        return get_instance_info(MyUser, user_pk)
 
 #update
 class UpdateUser(APIView):
     def post(self, request, format=json, *args, **kwargs):
         user_pk = kwargs.get('user_pk', None)
-        
         user = get_object_or_404(
             MyUser,
             pk=user_pk
-        )      
-
+        )
         request_data = request.data
         request_data['password'] = str(make_password(request_data['password']))
 
         serializer = UserRegistrationSerializer(user, data=request_data)
-        if serializer.is_valid():
-            # serializer['password'] = str(make_password(serializer['password']))
-            serializer.save()
-            return Response(
-                {
-                    "Message": "User modified successfuly.",
-                    "user": serializer.data
-                }
-            )
-        return Response(serializer.errors)
+        return create_or_update('updated', serializer)
 
 # delete 1 user
 class DeleteUser(APIView):
     def post(self, request, format=json, *args, **kwargs):
         user_pk = kwargs.get('user_pk', None)
-        user = get_object_or_404(
-            MyUser,
-            pk=user_pk
-        )        
-        user.delete()
-        return Response(
-            {
-                "Message": "User deleted successfuly."
-            }, status=status.HTTP_200_OK
-        )
-
-
-
-
-
-
-def get_jwt_token(request):
-    header          = JWTAuthentication().get_header(request)
-    raw_token       = JWTAuthentication().get_raw_token(header)
-    jwt_token       = JWTAuthentication().get_validated_token(raw_token)
-    
-    return jwt_token
-
-def token_is_valid(token):
-    expiration_date = token.payload['exp']
-    current_date    = int(datetime.datetime.now().timestamp())
-
-    if current_date <= expiration_date:
-        return True
-    return False
-
-
-
-
+        return delete_instance(user_pk, MyUser)
 
 
 
@@ -252,12 +280,12 @@ def token_is_valid(token):
 # COURSE CRUD
 #
 #
+
 # create a course
 class CreateCourse(APIView):
-    serializer_class = CourseSerializer
     def post(self, request, format=json):
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
+        user = get_user_email(token)
         
         is_teacher = token['is_teacher']
         
@@ -266,19 +294,9 @@ class CreateCourse(APIView):
                 request_body = request.data
                 request_body['author'] = str(user)
                 serializer = CourseSerializer(data=request_body)
-                if (serializer.is_valid()):
-                    serializer.save()
-                    return Response(
-                        {
-                            "Message": f"Course '{request_body['name']}' created succesfully.",
-                            "Course": serializer.data
-                        }, status=status.HTTP_201_CREATED
-                    )
-                return Response(
-                    {
-                        "Errors": serializer.errors
-                    }, status=status.HTTP_400_BAD_REQUEST
-                )
+
+                return create_or_update('create', serializer)
+
             return Response(
                 {
                     "Error": "token is not valid.",
@@ -302,14 +320,7 @@ class ListAllCourses(APIView):
 class ViewCourse(APIView):
     def get(self, request, format=None, *args, **kwargs):
         course_pk = kwargs.get('course_pk')
-
-        course = get_object_or_404(
-            Course,
-            pk=course_pk
-        )
-
-        serializer = CourseSerializer(course, many=False)
-        return Response(serializer.data)
+        return get_instance_info(Course, course_pk)
 
 # update course info
 class UpdateCourse(APIView):
@@ -321,6 +332,11 @@ class UpdateCourse(APIView):
             pk=course_pk
         )        
         serializer = CourseSerializer(course, data=request.data)
+
+        return create_or_update('update', serializer)
+
+
+
         if serializer.is_valid():
             serializer.save()
             return Response(
@@ -561,7 +577,17 @@ class ViewLecture(APIView):
 # update course info
 class UpdateLecture(APIView):
     def post(self, request, format=json, *args, **kwargs):
+        course_pk  = kwargs.get('course_pk', None)
         lecture_pk = kwargs.get('lecture_pk', None)
+
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
+
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )
+
         lecture = get_object_or_404(
             Lecture,
             pk=lecture_pk
@@ -617,9 +643,8 @@ class LectureAddFileImage(APIView):
             Course,
             pk=course_pk
         )
-        course_author = course.author
-
-        if str(user) == str(course_author): 
+        
+        if str(user) == str(course.author): 
             if token_is_valid(token):
                 request_body = request.data.copy()
                 request_body['lecture'] = lecture_pk
@@ -1047,13 +1072,35 @@ class ViewAllSolutions(APIView):
 class ViewSolution(APIView):
     serializer_class = CommentSerializer
     def get(self, request, format=json, *args, **kwargs):
-        solution_pk = kwargs.get('solution_pk', None)
-        solution = get_object_or_404(
-            Solution,
-            pk=solution_pk
-        )
-        serializer = SolutionSerializer(solution, many=False)
-        return Response(serializer.data)
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
+
+        if token_is_valid(token) == True:
+            course_pk = kwargs.get('course_pk', None)
+            course = get_object_or_404(
+                Course,
+                pk=course_pk
+            )
+            if course.author == str(user):
+                solution_pk = kwargs.get('solution_pk', None)
+                solution = get_object_or_404(
+                    Solution,
+                    pk=solution_pk
+                )
+                serializer = SolutionSerializer(solution, many=False)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {
+                        'Error': 'you are not a teacher'
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {
+                    'Error': 'token is not valid.'
+                },status=status.HTTP_401_UNAUTHORIZED
+            )
 
 class UpdateSolution(APIView):
     def post(self, request, format=json, *args, **kwargs):
@@ -1091,18 +1138,33 @@ class UpdateSolution(APIView):
 
 class DeleteSolution(APIView):
     def post(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)
         solution_pk = kwargs.get('solution_pk', None)
-        solution = get_object_or_404(
-            Solution,
-            pk=solution_pk
-        )
-        solution.delete()
-        return Response(
-            {
-                "Message": "Solution deleted successfuly."
-            }, status=status.HTTP_200_OK
-        )
+        
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)      
 
+        if token_is_valid(token):
+            course = Course.objects.get(pk=course_pk)
+            if course.author == str(user):
+                solution = get_object_or_404(
+                    Solution,
+                    pk=solution_pk
+                )
+                solution.delete()
+                return Response(
+                    {
+                        "Message": "Solution deleted successfuly."
+                    }, status=status.HTTP_200_OK
+                )
+            else:
+                print()
+        else:
+            return Response(
+                {
+                    'Error': 'token is not valid.'
+                },status=status.HTTP_401_UNAUTHORIZED
+            )
 
 
 class RateSolution(APIView):
@@ -1198,20 +1260,57 @@ class ApplicateToCourse(APIView):
 
 class ListAllApplications(APIView):
     def get(self, request, format=json, *args, **kwargs):
-        course_pk = kwargs.get('course_pk', None)
-        applications = CourseApplication.objects.filter(course=course_pk)
-        serializer = CourseApplicationSerializer(applications, many=True)
-        return Response(serializer.data)
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
 
-class ViewApplications(APIView):
+        if token_is_valid(token) == True:
+            course_pk = kwargs.get('course_pk', None)
+            course = Course.objects.get(pk=course_pk)
+
+            if str(user) == course.author:
+                applications = CourseApplication.objects.filter(course=course_pk)
+                serializer = CourseApplicationSerializer(applications, many=True)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {
+                        'Error': 'You are not allowed to view this page.'
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {
+                    'Error': 'token is not valid.'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+class ViewApplication(APIView):
     def get(self, request, format=json, *args, **kwargs):
-        application_pk = kwargs.get('application_pk', None)
-        application = get_object_or_404(
-            CourseApplication,
-            pk=application_pk
-        )
-        serializer = CourseApplicationSerializer(application)
-        return Response(serializer.data)
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
+
+        if token_is_valid(token) == True:
+            application_pk = kwargs.get('application_pk', None)
+            application = get_object_or_404(
+                CourseApplication,
+                pk=application_pk
+            )
+            if application.student.email == str(user):
+                serializer = CourseApplicationSerializer(application)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {
+                        "You are not allowed to view this page."
+                    }, status=status.HTTP_401_UNAUTHORIZED
+                )
+        else:
+            return Response(
+                {
+                    'Error': 'token is not valid.'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
 
 class ApproveApplication(APIView):
     def post(self, request, format=json, *args, **kwargs):
@@ -1225,8 +1324,7 @@ class ApproveApplication(APIView):
             pk=application_pk
         )
 
-
-        if token_is_valid(token) == True:
+        if token_is_valid(token):
             if str(user) == application.course.author:
                 application = get_object_or_404(
                     CourseApplication,
@@ -1266,18 +1364,41 @@ class ApproveApplication(APIView):
 
 class DeleteApplication(APIView):
     def post(self, request, format=json, *args, **kwargs):
-        application_pk = kwargs.get('application_pk', None)
-        application = get_object_or_404(
-            CourseApplication,
-            pk=application_pk
-        )
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
 
-        application.delete()
-        return Response(
-            {
-                "Message": "application deleted successfuly."
-            }, status=status.HTTP_200_OK
-        )
+        if token_is_valid(token):
+            application_pk  = kwargs.get('application_pk', None)
+            course_pk       = kwargs.get('course_pk', None)
+
+            course = get_object_or_404(
+                Course,
+                pk=course_pk
+            )
+            if str(user) == course.author:
+                application = get_object_or_404(
+                    CourseApplication,
+                    pk=application_pk
+                )
+                application.delete()
+
+                return Response(
+                    {
+                        "Message": "application deleted successfuly."
+                    }, status=status.HTTP_200_OK
+                )
+            else:
+                return Response(
+                    {
+                        "Error": "You are not a course author."
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {
+                    "Error": "token is not valid."
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
 
 
 
@@ -1295,8 +1416,6 @@ class CountAverageCourseGrade(APIView):
     def get(self, request, format=json, *args, **kwargs):
         course_pk   = kwargs.get('course_pk', None)
         student_pk  = kwargs.get('student_pk', None)
-
-
 
         student_course_application = get_object_or_404(
             CourseApplication,
@@ -1355,28 +1474,59 @@ class GetAverageCourseGrade(APIView):
 
 class GetAllStudentsCourseGrades(APIView):
     def get(self, request, format=json, *args, **kwargs):
-        course_pk = kwargs.get('course_pk', None)
 
-        all_students_solutions = Solution.objects.filter(course=course_pk)
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
 
-        serializer = AverageCourseGradeSerializer(all_students_solutions, many=True)
-        return Response(serializer.data)
+        if token_is_valid(token):
+            course_pk = kwargs.get('course_pk', None)
+            course = Course.objects.get(pk=course_pk)
+            if course.author == str(user):
+                all_students_solutions = Solution.objects.filter(course=course_pk)
+                serializer = AverageCourseGradeSerializer(all_students_solutions, many=True)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {
+                        'Error': 'only teachers allowed to this page.'
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {
+                    'Error': 'token is not valid.'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
 
 class DeleteAverageGrade(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk   = kwargs.get('course_pk', None)
         student_pk  = kwargs.get('student_pk', None)
 
-        course_grade = get_object_or_404(
-            AverageCourseGrade,
-            course=course_pk,
-            student=student_pk
-        )
+        token = get_jwt_token(request)
+        user = JWTAuthentication().get_user(token)
 
-        course_grade.delete()
+        if token_is_valid(token):
+            course = get_object_or_404(
+                Course,
+                pk=course_pk
+            )
+            if course.author == str(user):
+                course_grade = get_object_or_404(
+                    AverageCourseGrade,
+                    course=course_pk,
+                    student=student_pk
+                )
+                course_grade.delete()
+            else:
+                return Response(
+                    {
+                        'Error': 'only teachers are allowed to view this page.'
+                    }, status=status.HTTP_200_OK
+                )
 
-        return Response(
-            {
-                "Message": "average grade successfuly deleted.",
-            }, status=status.HTTP_200_OK
-        )
+            return Response(
+                {
+                    "Message": "average grade successfuly deleted.",
+                }, status=status.HTTP_200_OK
+            )
