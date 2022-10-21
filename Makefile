@@ -1,7 +1,6 @@
 DOCKER=docker-compose
-DB=python3 manage.py
 
-.PHONY: init up stop down migrations migrate
+.PHONY: init up stop down
 
 init:
 	@$(DOCKER) up -d --build
@@ -14,9 +13,3 @@ stop:
 
 down:
 	@$(DOCKER) down --remove-orphans
-
-migrations:
-	@$(DB) makemigrations
-
-migrate:
-	@$(DB) migrate

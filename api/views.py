@@ -1,4 +1,5 @@
 import json
+from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -12,6 +13,8 @@ from django.contrib.auth.hashers import make_password
 # average course grade
 from django.utils import timezone
 from django.db.models import Avg
+
+from api.managers import MyUserManager
 
 
 from .models import (
@@ -45,24 +48,77 @@ from .serializers import (
 )
 
 
-"""
+
 # view all possibilities of this api
 class ApiOverview(APIView):
     def get(self, request, format=None):
         api_urls = {
-            'Sign up': 'api/sign-up/',
-            'Get jwt tokens': '/api/token/',
-            'Refresh jwt tokens': '/api/token/refresh/',
-            'List of all users': '/api/all-users/',
+            'get jwt toknes': 'api/token/',
+            'refresh jwt tokens': 'api/token/refresh/',
+            'users': 'urls',
+            'sign up': 'api/sign-up/',
+            'list of all users': 'api/users/all/',
+            'list of all students': 'api/users/students/',
+            'list of all teachers': 'api/users/teachers/',
+            'info about user': 'api/users/<int:user_pk>/',
+            'delete user': 'api/users/<int:user_pk>/delete/',
+            'update user info': 'api/users/<int:user_pk>/update/',
+            'courses': 'urls',
+            'list of all cousers': 'api/courses/',
+            'create a new course': 'api/courses/new/',
+            'view info about course': 'api/courses/<course_pk>/',
+            'update course info': 'api/courses/<int:course_pk>/update/',
+            'delete course': 'api/courses/<int:course_pk>/delete/',
+            'chapters': 'urls',
+            'create a new chapter': 'api/courses/<int:course_pk>/chapters/new/',
+            'list of all chapters': 'api/courses/<int:course_pk>/chapters/',
+            'get chapter info': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/',
+            'update chapter info': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/update/',
+            'delete chapter': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/delete/',
+            'lectures': 'urls',
+            'create a new lecture': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/new/',
+            'list of all lectures': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/',
+            'get info about lecture': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/',
+            'update info about lecture': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/update/',
+            'delete lecture': 'api/ courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/delete/',
+            'add image to lecture': 'api/ courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/add/image/',
+            'add file to lecture': 'api/ courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/add/file/',
+            'tasks': 'urls',
+            'create a new task': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/new/',
+            'list all tasks': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/',
+            'get info about task': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/',
+            'update task info': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/update/',
+            'delete task': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/delete/',
+            'comments': 'urls',
+            'create a comment': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/new/',
+            'list all comments': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/',
+            'view comment': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/<int:comment_pk>/',
+            'update comment': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/<int:comment_pk>/update/',
+            'delete comment': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/<int:comment_pk>/delete/',
+            "solutions": 'urls',
+            'create a solution': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/new/',
+            'list all solutions': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/',
+            'get solution info': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/',
+            'update solution': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/update/',
+            'delete solution': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/delete/',
+            'rate a solution': 'api/courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/rate/',
+            'applications': 'urls',
+            'make an application': 'api/ courses/<int:course_pk>/applications/new/',
+            'list all applications': 'api/ courses/<int:course_pk>/applications/',
+            'get application info': 'api/ courses/<int:course_pk>/applications/<application_pk>/',
+            'approve application': 'api/ courses/<int:course_pk>/applications/<application_pk>/approve/',
+            'delete application': 'api/ courses/<int:course_pk>/applications/<application_pk>/delete/',
+            'grades': 'urls',
+            'list all average grades': 'api/courses/<int:course_pk>/grades/<int:student_pk>/',
+            'count average grade for user': 'api/courses/<int:course_pk>/grades/<int:student_pk>/count/',
+            'get average grade of a user': 'api/courses/<int:course_pk>/grades/',
+            'delete average grade': 'api/courses/<int:course_pk>/grades/<int:student_pk>/delete/',
         }
         return Response(api_urls)
-"""
+
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
-
-
-
 
 
 
@@ -116,7 +172,12 @@ class ViewUserInfo(APIView):
         
         print('USER PK =', user_pk)
         print('KWARGS =', kwargs)
-        user = MyUser.objects.get(pk=user_pk)
+
+        user = get_object_or_404(
+            MyUser,
+            pk=user_pk
+        )
+
         serializer = UserSerializer(user, many=False)
         return Response(serializer.data)
 
@@ -125,8 +186,11 @@ class UpdateUser(APIView):
     def post(self, request, format=json, *args, **kwargs):
         user_pk = kwargs.get('user_pk', None)
         
-        user = MyUser.objects.get(pk=user_pk)
-        
+        user = get_object_or_404(
+            MyUser,
+            pk=user_pk
+        )      
+
         request_data = request.data
         request_data['password'] = str(make_password(request_data['password']))
 
@@ -146,7 +210,10 @@ class UpdateUser(APIView):
 class DeleteUser(APIView):
     def post(self, request, format=json, *args, **kwargs):
         user_pk = kwargs.get('user_pk', None)
-        user = MyUser.objects.get(pk=user_pk)
+        user = get_object_or_404(
+            MyUser,
+            pk=user_pk
+        )        
         user.delete()
         return Response(
             {
@@ -234,8 +301,13 @@ class ListAllCourses(APIView):
 # view course info
 class ViewCourse(APIView):
     def get(self, request, format=None, *args, **kwargs):
-        pk = kwargs.get('pk')
-        course = Course.objects.get(pk=pk)
+        course_pk = kwargs.get('course_pk')
+
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )
+
         serializer = CourseSerializer(course, many=False)
         return Response(serializer.data)
 
@@ -243,8 +315,11 @@ class ViewCourse(APIView):
 class UpdateCourse(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk', None)
-        course = Course.objects.get(pk=course_pk)
-        
+
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )        
         serializer = CourseSerializer(course, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -260,7 +335,10 @@ class UpdateCourse(APIView):
 class DeleteCourse(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk')
-        course = Course.objects.get(pk=course_pk)
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )        
         course.delete()
         return Response(
             {
@@ -291,7 +369,10 @@ class CreateChapter(APIView):
 
         if is_teacher == True:
             if token_is_valid(token):
-                course = Course.objects.get(pk=course_pk)
+                course = get_object_or_404(
+                    Course,
+                    pk=course_pk
+                )                
                 course_author = course.author
                 if str(user) == str(course_author): 
                     request_body = request.data
@@ -330,7 +411,10 @@ class CreateChapter(APIView):
 class ListAllChapters(APIView):
     def get(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk', None)
-        course = Course.objects.get(pk=course_pk)
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )        
         chapters = Chapter.objects.filter(course=course)
         serializer = ChapterSerializer(chapters, many=True)
 
@@ -339,8 +423,11 @@ class ListAllChapters(APIView):
 # view chapter info
 class ViewChapter(APIView):
     def get(self, request, format=json, *args, **kwargs):
-        pk = kwargs.get('chapter_pk')
-        chapter = Chapter.objects.get(pk=pk)
+        chapter_pk = kwargs.get('chapter_pk')
+        chapter = get_object_or_404(
+            Chapter,
+            pk=chapter_pk
+        )
         serializer = ChapterSerializer(chapter, many=False)
         return Response(serializer.data)
 
@@ -348,8 +435,10 @@ class ViewChapter(APIView):
 class UpdateChapter(APIView):
     def post(self, request, format=json, *args, **kwargs):
         chapter_pk = kwargs.get('chapter_pk', None)
-        chapter = Chapter.objects.get(pk=chapter_pk)
-        
+        chapter = get_object_or_404(
+            Chapter,
+            pk=chapter_pk
+        )        
         serializer = ChapterSerializer(chapter, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -363,8 +452,11 @@ class UpdateChapter(APIView):
 
 class DeleteChapter(APIView):
     def post(self, request, format=json, *args, **kwargs):
-        pk = kwargs.get('chapter_pk')
-        chapter = Chapter.objects.get(pk=pk)
+        chapter_pk = kwargs.get('chapter_pk')
+        chapter = get_object_or_404(
+            Chapter,
+            pk=chapter_pk
+        )           
         chapter.delete()
         return Response(
             {
@@ -403,7 +495,10 @@ class CreateLecture(APIView):
 
         if is_teacher == True:
             if token_is_valid(token):
-                course = Course.objects.get(pk=course_pk)
+                course = get_object_or_404(
+                    Course,
+                    pk=course_pk
+                )                   
                 course_author = course.author
                 if str(user) == str(course_author): 
                     request_body = request.data
@@ -443,7 +538,10 @@ class ListAllLectures(APIView):
     serializer_class = LectureSerializer
     def get(self, request, format=json, *args, **kwargs):
         chapter_pk = kwargs.get('chapter_pk', None)
-        chapter = Chapter.objects.get(pk=chapter_pk)
+        chapter = get_object_or_404(
+            Chapter,
+            pk=chapter_pk
+        )             
         lectures = Lecture.objects.filter(chapter=chapter)
         serializer = LectureSerializer(lectures, many=True)
         return Response(serializer.data)
@@ -453,7 +551,10 @@ class ViewLecture(APIView):
     serializer_class = LectureSerializer
     def get(self, request, format=json, *args, **kwargs):
         lecture_pk = kwargs.get('lecture_pk', None)
-        lecture = Lecture.objects.get(pk=lecture_pk)
+        lecture = get_object_or_404(
+            Lecture,
+            pk=lecture_pk
+        )
         serializer = LectureSerializer(lecture, many=False)
         return Response(serializer.data)
 
@@ -461,7 +562,10 @@ class ViewLecture(APIView):
 class UpdateLecture(APIView):
     def post(self, request, format=json, *args, **kwargs):
         lecture_pk = kwargs.get('lecture_pk', None)
-        lecture = Lecture.objects.get(pk=lecture_pk)
+        lecture = get_object_or_404(
+            Lecture,
+            pk=lecture_pk
+        )
         
         serializer = LectureSerializer(lecture, data=request.data)
         if serializer.is_valid():
@@ -479,7 +583,10 @@ class DeleteLecture(APIView):
     serializer_class = LectureSerializer
     def post(self, request, format=json, *args, **kwargs):
         lecture_pk = kwargs.get('lecture_pk', None)
-        lecture = Lecture.objects.get(pk=lecture_pk)
+        lecture = get_object_or_404(
+            Lecture,
+            pk=lecture_pk
+        )
         lecture.delete()
         return Response(
             {
@@ -487,32 +594,47 @@ class DeleteLecture(APIView):
             }, status=status.HTTP_200_OK
         )
 
+
+
+
+#
+#
+# LECTURE FILE/IMAGE CRUD
+#
+#
+
 class LectureAddFileImage(APIView):
     def post(self, request, format=json, *args, **kwargs):
         # pk_course для проверки является ли user автором курса
         course_pk  = kwargs.get('course_pk', None)
         lecture_pk = kwargs.get('lecture_pk', None)
+        file_type  = kwargs.get('file_type', None)
 
         token = get_jwt_token(request)
         user = JWTAuthentication().get_user(token)
 
-        course = Course.objects.get(pk=course_pk)
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )
         course_author = course.author
 
         if str(user) == str(course_author): 
             if token_is_valid(token):
-                request_body = request.data
+                request_body = request.data.copy()
                 request_body['lecture'] = lecture_pk
-                if request.data['image'] != None:
+
+                if file_type == 'image':
                     serializer = LectureImageSerializer(data=request_body)
-                elif request.data['image'] != None:
+                if file_type == 'file':
                     serializer = LectureFileSerializer(data=request_body)
+
                 if (serializer.is_valid()):
                     serializer.save()
                     return Response(
                         {
-                            "Message": f"File added succesfully.",
-                            "File": serializer.data
+                            "Message": f"{file_type} added succesfully.",
+                            f"{file_type}": serializer.data
                         }, status=status.HTTP_201_CREATED
                     )
                 return Response(
@@ -527,13 +649,85 @@ class LectureAddFileImage(APIView):
             )
         return Response(
             {
-                "Error": "you can create lectures only for your courses."
+                "Error": f"you can add {file_type} only for your lectures."
             }, status=status.HTTP_403_FORBIDDEN
         )
 
 
+class GetLectureFileImage(APIView):
+    def get(self, request, format=json, *args, **kwargs):
+        file_type   = kwargs.get('file_type', None)
+        file_pk     = kwargs.get('file_pk', None)
+
+        if file_type == 'image':
+            file_instance = get_object_or_404(
+                LectureImage,
+                pk=file_pk
+            )
+            serializer = LectureImageSerializer(file_instance, many=False)
+        elif file_type == 'file':
+            file_instance = get_object_or_404(
+                LectureFile,
+                pk=file_pk
+            )
+            serializer = LectureFileSerializer(file_instance, many=False)
+        
+        return Response(serializer.data)
 
 
+class UpdateLectureFileImage(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        file_type   = kwargs.get('file_type', None)
+        file_pk     = kwargs.get('file_pk', None)
+
+        if file_type == 'image':
+            file_instance = get_object_or_404(
+                LectureImage,
+                pk=file_pk
+            )
+
+            serializer = LectureImageSerializer(file_instance, data=request.data)
+        elif file_type == 'file':
+            file_instance = get_object_or_404(
+                LectureFile,
+                pk=file_pk
+            )
+            serializer = LectureFileSerializer(file_instance, data=request.data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "Message": f"{file_type} modified successfuly.",
+                    f"{file_type}": serializer.data
+                }, status=status.HTTP_200_OK
+            )
+        
+        return Response(serializer.data)
+
+class DeleteLectureFileImage(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        file_type   = kwargs.get('file_type', None)
+        file_pk     = kwargs.get('file_pk', None)
+
+        if file_type == 'image':
+            file_instance = get_object_or_404(
+                LectureImage,
+                pk=file_pk
+            )
+        elif file_type == 'file':
+            file_instance = get_object_or_404(
+                LectureFile,
+                pk=file_pk
+            )        
+        
+        file_instance.delete()
+
+        return Response(
+            {
+                "Message": f"{file_type} deleted successfuly."
+            }, status=status.HTTP_200_OK
+        )
 
 
 
@@ -564,7 +758,10 @@ class CreateTask(APIView):
 
         if is_teacher == True:
             if token_is_valid(token):
-                course = Course.objects.get(pk=course_pk)
+                course = get_object_or_404(
+                    Course,
+                    pk=course_pk
+                )
                 course_author = course.author
                 if str(user) == str(course_author): 
                     request_body = request.data
@@ -604,7 +801,10 @@ class ListAllTasks(APIView):
     serializer_class = TaskSerializer
     def get(self, request, format=json, *args, **kwargs):
         chapter_pk = kwargs.get('chapter_pk', None)
-        chapter = Chapter.objects.get(pk=chapter_pk)
+        chapter = get_object_or_404(
+            Chapter,
+            pk=chapter_pk
+        )
         tasks = Task.objects.filter(chapter=chapter)
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
@@ -614,7 +814,10 @@ class ViewTask(APIView):
     serializer_class = TaskSerializer
     def get(self, request, format=json, *args, **kwargs):
         task_pk = kwargs.get('task_pk', None)
-        task = Task.objects.get(pk=task_pk)
+        task = get_object_or_404(
+            Task,
+            pk=task_pk
+        )
         serializer = TaskSerializer(task, many=False)
         return Response(serializer.data)
 
@@ -622,8 +825,11 @@ class ViewTask(APIView):
 class UpdateTask(APIView):
     def post(self, request, format=json, *args, **kwargs):
         task_pk = kwargs.get('task_pk', None)
-        task = Task.objects.get(pk=task_pk)
-        
+        task = get_object_or_404(
+            Task,
+            pk=task_pk
+        )
+
         serializer = TaskSerializer(task, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -640,16 +846,16 @@ class DeleteTask(APIView):
     serializer_class = TaskSerializer
     def post(self, request, format=json, *args, **kwargs):
         task_pk = kwargs.get('task_pk', None)
-        task = Task.objects.get(pk=task_pk)
+        task = get_object_or_404(
+            Task,
+            pk=task_pk
+        )
         task.delete()
         return Response(
             {
                 "Message": "Task deleted successfuly."
             }, status=status.HTTP_200_OK
         )
-
-
-
 
 
 
@@ -672,7 +878,12 @@ class CreateComment(APIView):
         # если юзер писавший коммент - автор, то добавлять '(Автор)' после почты
         # course_pk для извлечения автора курса
         course_pk = kwargs.get('course_pk', None)
-        course_author = Course.objects.get(pk=course_pk)
+
+        course_author = get_object_or_404(
+            Course,
+            pk=course_pk
+        )
+
         course_author = course_author.author
 
         token = get_jwt_token(request)
@@ -724,14 +935,23 @@ class ViewComment(APIView):
     serializer_class = CommentSerializer
     def get(self, request, format=json, *args, **kwargs):
         comment_pk = kwargs.get('comment_pk', None)
-        comment = Comment.objects.get(pk=comment_pk)
+
+        comment = get_object_or_404(
+            Comment,
+            pk=comment_pk,
+        )
+
         serializer = CommentSerializer(comment, many=False)
         return Response(serializer.data)
 
 class UpdateComment(APIView):
     def post(self, request, format=json, *args, **kwargs):
         comment_pk = kwargs.get('comment_pk', None)
-        comment = Comment.objects.get(pk=comment_pk)
+
+        comment = get_object_or_404(
+            Comment,
+            pk=comment_pk
+        )
         
         request_data = request.data
         request_data['author'] = comment.author
@@ -749,7 +969,11 @@ class UpdateComment(APIView):
 class DeleteComment(APIView):
     def post(self, request, format=json, *args, **kwargs):
         comment_pk = kwargs.get('comment_pk', None)
-        comment = Comment.objects.get(pk=comment_pk)
+        comment = get_object_or_404(
+            Comment,
+            pk=comment_pk
+        )
+        
         comment.delete()
         return Response(
             {
@@ -775,7 +999,10 @@ class CreateSolution(APIView):
         
 
         if token_is_valid(token):
-            task = Task.objects.get(pk=task_pk)
+            task = get_object_or_404(
+                Task,
+                pk=task_pk
+            )
             current_date = timezone.now()
             if current_date <= task.deadline:
                 request_body            = request.data.copy()
@@ -821,7 +1048,10 @@ class ViewSolution(APIView):
     serializer_class = CommentSerializer
     def get(self, request, format=json, *args, **kwargs):
         solution_pk = kwargs.get('solution_pk', None)
-        solution = Solution.objects.get(pk=solution_pk)
+        solution = get_object_or_404(
+            Solution,
+            pk=solution_pk
+        )
         serializer = SolutionSerializer(solution, many=False)
         return Response(serializer.data)
 
@@ -831,8 +1061,10 @@ class UpdateSolution(APIView):
         course_pk   = kwargs.get('course_pk', None)
         task_pk     = kwargs.get('task_pk', None)
 
-        solution = Solution.objects.get(pk=solution_pk)
-        
+        solution = get_object_or_404(
+            Solution,
+            pk=solution_pk
+        )        
         if solution.grade != 0:
             request_data            = request.data
             request_data['course']  = course_pk
@@ -860,7 +1092,10 @@ class UpdateSolution(APIView):
 class DeleteSolution(APIView):
     def post(self, request, format=json, *args, **kwargs):
         solution_pk = kwargs.get('solution_pk', None)
-        solution = Solution.objects.get(pk=solution_pk)
+        solution = get_object_or_404(
+            Solution,
+            pk=solution_pk
+        )
         solution.delete()
         return Response(
             {
@@ -879,10 +1114,15 @@ class RateSolution(APIView):
 
         token = get_jwt_token(request)
         user = JWTAuthentication().get_user(token)      
-        course = Course.objects.get(pk=course_pk)
-
+        course = get_object_or_404(
+            Course,
+            pk=course_pk
+        )
         if str(user) == course.author:
-            solution = Solution.objects.get(pk=solution_pk)
+            solution = get_object_or_404(
+                Solution,
+                pk=solution_pk
+            )
    
             request_data            = request.data
             request_data['file']    = solution.file
@@ -926,7 +1166,12 @@ class ApplicateToCourse(APIView):
         user = JWTAuthentication().get_user(token)
 
         if token_is_valid(token) == True:
-            user_instance = MyUser.objects.get(email=str(user))
+
+            user_instance = get_object_or_404(
+                MyUser,
+                email=str(user)
+            )
+
             request_body = {}
             request_body['course'] = course_pk
             request_body['student'] = user_instance.pk
@@ -961,7 +1206,10 @@ class ListAllApplications(APIView):
 class ViewApplications(APIView):
     def get(self, request, format=json, *args, **kwargs):
         application_pk = kwargs.get('application_pk', None)
-        application = CourseApplication.objects.get(pk=application_pk)
+        application = get_object_or_404(
+            CourseApplication,
+            pk=application_pk
+        )
         serializer = CourseApplicationSerializer(application)
         return Response(serializer.data)
 
@@ -972,11 +1220,19 @@ class ApproveApplication(APIView):
         token = get_jwt_token(request)
         user = JWTAuthentication().get_user(token)
 
-        application = CourseApplication.objects.get(pk=application_pk)
+        application = get_object_or_404(
+            CourseApplication,
+            pk=application_pk
+        )
+
 
         if token_is_valid(token) == True:
             if str(user) == application.course.author:
-                application = CourseApplication.objects.get(pk=application_pk)
+                application = get_object_or_404(
+                    CourseApplication,
+                    pk=application_pk
+                )
+
                 
                 request_body = {}
                 request_body['course']      = application.course.pk
@@ -1011,7 +1267,11 @@ class ApproveApplication(APIView):
 class DeleteApplication(APIView):
     def post(self, request, format=json, *args, **kwargs):
         application_pk = kwargs.get('application_pk', None)
-        application = CourseApplication.objects.get(pk=application_pk)
+        application = get_object_or_404(
+            CourseApplication,
+            pk=application_pk
+        )
+
         application.delete()
         return Response(
             {
@@ -1036,14 +1296,20 @@ class CountAverageCourseGrade(APIView):
         course_pk   = kwargs.get('course_pk', None)
         student_pk  = kwargs.get('student_pk', None)
 
-        student_course_application = CourseApplication.objects.get(
+
+
+        student_course_application = get_object_or_404(
+            CourseApplication,
             student=student_pk, 
             course=course_pk,
             approved=True
         )
 
-        
-        student_email = MyUser.objects.get(pk=student_pk).email
+        student_email = get_object_or_404(
+            MyUser,
+            pk=student_pk
+        )
+        student_email = student_email.email
 
         if student_course_application != None:
 
@@ -1072,33 +1338,45 @@ class CountAverageCourseGrade(APIView):
             raise NotFound(detail="Error 404: page not found.", code=404)
 
 
-
-
 class GetAverageCourseGrade(APIView):
     def get(self, request, format=json, *args, **kwargs):
         course_pk   = kwargs.get('course_pk', None)
         student_pk  = kwargs.get('student_pk', None)
 
-        course_grade = AverageCourseGrade.objects.get(
+        course_grade = get_object_or_404(
+            AverageCourseGrade,
             course=course_pk,
             student=student_pk
         )
 
-        serializer = AverageCourseGradeSerializer(data=course_grade)
+        serializer = AverageCourseGradeSerializer(course_grade)
+        
         return Response(serializer.data)
-
-
-
-
-
-
-
-
-
 
 class GetAllStudentsCourseGrades(APIView):
     def get(self, request, format=json, *args, **kwargs):
-        course_pk   = kwargs.get('course_pk', None)        
-        all_student_solutions = Solution.objects.filter(course=course_pk)
-        serializer = AverageCourseGradeSerializer(all_student_solutions, many=True)
+        course_pk = kwargs.get('course_pk', None)
+
+        all_students_solutions = Solution.objects.filter(course=course_pk)
+
+        serializer = AverageCourseGradeSerializer(all_students_solutions, many=True)
         return Response(serializer.data)
+
+class DeleteAverageGrade(APIView):
+    def post(self, request, format=json, *args, **kwargs):
+        course_pk   = kwargs.get('course_pk', None)
+        student_pk  = kwargs.get('student_pk', None)
+
+        course_grade = get_object_or_404(
+            AverageCourseGrade,
+            course=course_pk,
+            student=student_pk
+        )
+
+        course_grade.delete()
+
+        return Response(
+            {
+                "Message": "average grade successfuly deleted.",
+            }, status=status.HTTP_200_OK
+        )

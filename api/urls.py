@@ -4,14 +4,12 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 
 urlpatterns = [
-    # path('', views.ApiOverview.as_view(), name='api-overview'),
-
+    path('', views.ApiOverview.as_view(), name='api-overview'),
 
     #jwt tokens
     path('token/', views.MyTokenObtainPairView.as_view(), name='token-obtain-pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('token/verify/', TokenVerifyView.as_view(), name='token-verify'),
-
 
     # user
     path('sign-up/', views.UserRegistrationView.as_view(), name='sign-up'),
@@ -20,11 +18,10 @@ urlpatterns = [
     path('users/<int:user_pk>/update/', views.UpdateUser.as_view(), name='update-user'),
     path('users/<str:users_type>/', views.ListRequestedUsers.as_view(), name='list-of-all-users'),
 
-
     # course
     path('courses/new/', views.CreateCourse.as_view(), name='create-new-course'),
     path('courses/', views.ListAllCourses.as_view(), name='list-all-courses'),
-    path('courses/<int:pk>/', views.ViewCourse.as_view(), name='view-course'),
+    path('courses/<int:course_pk>/', views.ViewCourse.as_view(), name='view-course'),
     path('courses/<int:course_pk>/update/', views.UpdateCourse.as_view(), name='update-course'),
     path('courses/<int:course_pk>/delete/', views.DeleteCourse.as_view(), name='delete-course'),
 
@@ -40,7 +37,6 @@ urlpatterns = [
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/delete/',\
          views.DeleteChapter.as_view(), name='delete-chapter'),
 
-
     # lecture
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/new/', \
         views.CreateLecture.as_view(), name='create-new-lecture'),
@@ -53,11 +49,15 @@ urlpatterns = [
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/delete/', \
         views.DeleteLecture.as_view(), name='delete-lecture'),
 
-    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/add/image', \
-        views.LectureAddFileImage.as_view(), name='lecture-add-image'),
-    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/add/file', \
-        views.LectureAddFileImage.as_view(), name='lecture-add-file'),
-
+    # lecture file/image
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/<str:file_type>/new/', \
+        views.LectureAddFileImage.as_view(), name='create-lecture-file-or-image'),
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/<str:file_type>/<int:file_pk>/get/', \
+        views.GetLectureFileImage.as_view(), name='get-lecture-file-or-image'),
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/<str:file_type>/<int:file_pk>/update/', \
+        views.UpdateLectureFileImage.as_view(), name='update-lecture-file-or-image'),
+    path('courses/<int:course_pk>/chapters/<int:chapter_pk>/lectures/<int:lecture_pk>/<str:file_type>/<int:file_pk>/delete/', \
+        views.DeleteLectureFileImage.as_view(), name='delete-lecture-file-or-image'),
 
     # task
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/new/', \
@@ -71,7 +71,6 @@ urlpatterns = [
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/delete/', \
         views.DeleteTask.as_view(), name='delete-task'),
     
-
     # comment
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/new/', \
         views.CreateComment.as_view(), name='create-comment'),
@@ -83,7 +82,6 @@ urlpatterns = [
         views.UpdateComment.as_view(), name='change-comment'),
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/comments/<int:comment_pk>/delete/', \
         views.DeleteComment.as_view(), name='delete-comment'),
-
 
     # solutions
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/new/', \
@@ -99,7 +97,6 @@ urlpatterns = [
     path('courses/<int:course_pk>/chapters/<int:chapter_pk>/tasks/<int:task_pk>/solutions/<int:solution_pk>/rate/',\
         views.RateSolution.as_view(), name='rate-solution'),
     
-
     # applications
     path('courses/<int:course_pk>/applications/new/', \
         views.ApplicateToCourse.as_view(), name='applicate-to-course'),
@@ -119,6 +116,6 @@ urlpatterns = [
         views.CountAverageCourseGrade.as_view(), name='count-course-grade'),
     path('courses/<int:course_pk>/grades/', \
         views.GetAllStudentsCourseGrades.as_view(), name='all-students-course-grade'),
-
-
+    path('courses/<int:course_pk>/grades/<int:student_pk>/delete/', \
+        views.DeleteAverageGrade.as_view(), name='delete-average-grade'),
 ]
