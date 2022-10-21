@@ -577,7 +577,6 @@ class DeleteLectureFileImage(APIView):
 
 # create a new task
 class CreateTask(APIView):
-    serializer_class = TaskSerializer
     def post(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk')
         chapter_pk = kwargs.get('chapter_pk')
@@ -651,60 +650,29 @@ class DeleteTask(APIView):
 
 # create a new comment
 class CreateComment(APIView):
-    serializer_class = CommentSerializer
     def post(self, request, format=json, *args, **kwargs):
-        # task_pk для добавления в request для CommentSerializer
-        task_pk = kwargs.get('task_pk', None)
-
-        # если юзер писавший коммент - автор, то добавлять '(Автор)' после почты
-        # course_pk для извлечения автора курса
-        course_pk = kwargs.get('course_pk', None)
-
-        course_author = get_object_or_404(
-            Course,
-            pk=course_pk
-        )
-
-        course_author = course_author.author
+        course_pk = kwargs.get('course_pk')
+        task_pk = kwargs.get('task_pk')
 
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
-        
-        # если юзер - учитель (не обязательно автор курса)
-        is_teacher = token['is_teacher']
-
-        is_course_author = False
-        if str(user) == str(course_author):
-            is_course_author = True
+        user  = get_user_email(token)
 
         if token_is_valid(token):
-            request_body                        = request.data
-            request_body['task']                = task_pk
-            request_body['author']              = str(user)
-            request_body['is_course_author']    = is_course_author
+            user_is_course_author = False
+            if is_course_author(request, course_pk):
+                user_is_course_author = True
+
+            request_body                     = request.data
+            request_body['task']             = task_pk
+            request_body['author']           = user
+            request_body['is_course_author'] = user_is_course_author
 
             serializer = CommentSerializer(data=request_body)
-            if (serializer.is_valid()):
-                serializer.save()
-                return Response(
-                    {
-                        "Message": "Comment created succesfully.",
-                        "Comment": serializer.data
-                    }, status=status.HTTP_201_CREATED
-                )
-            return Response(
-                {
-                    "Errors": serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response(
-            {
-                "Error": "token is not valid.",
-            }, status=status.HTTP_401_UNAUTHORIZED
-        )
+            
+            return create_or_update('create', serializer)
+        return response_token_expired
 
 class ViewTaskComments(APIView):
-    serializer_class = CommentSerializer
     def get(self, request, format=json, *args, **kwargs):
         task_pk = kwargs.get('task_pk', None)
         comments = Comment.objects.filter(task=task_pk)
@@ -713,52 +681,48 @@ class ViewTaskComments(APIView):
 
 
 class ViewComment(APIView):
-    serializer_class = CommentSerializer
     def get(self, request, format=json, *args, **kwargs):
         comment_pk = kwargs.get('comment_pk', None)
-
-        comment = get_object_or_404(
-            Comment,
-            pk=comment_pk,
-        )
-
-        serializer = CommentSerializer(comment, many=False)
-        return Response(serializer.data)
+        return get_instance_info(Comment, comment_pk)
 
 class UpdateComment(APIView):
     def post(self, request, format=json, *args, **kwargs):
+        course_pk = kwargs.get('course_pk')
         comment_pk = kwargs.get('comment_pk', None)
 
-        comment = get_object_or_404(
-            Comment,
-            pk=comment_pk
-        )
-        
-        request_data = request.data
-        request_data['author'] = comment.author
-        serializer = CommentSerializer(comment, data=request_data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "Message": "Comment modified successfuly.",
-                    "task": serializer.data
-                }, status=status.HTTP_200_OK
+        token = get_jwt_token(request)
+        user = get_user_email(token)
+
+        if token_is_valid(token):
+            comment = get_object_or_404(
+                Comment,
+                pk=comment_pk
             )
-        return Response(serializer.errors)   
+            if user == comment.author or is_course_author(request, course_pk):
+                request_data = request.data
+                request_data['author'] = comment.author
+                serializer = CommentSerializer(comment, data=request_data)
+                return create_or_update('update', serializer)
+            return response_forbidden
+        return response_token_expired
 
 class DeleteComment(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk')
         comment_pk = kwargs.get('comment_pk', None)
+        
         token = get_jwt_token(request)
+        user = get_user_email(token)
 
         if token_is_valid(token):
-            if is_course_author(request, course_pk):
+            comment = get_object_or_404(
+                Comment,
+                pk=comment_pk
+            )
+            if user == comment.author or is_course_author(request, course_pk):
                 return delete_instance(Comment, comment_pk)
             return response_forbidden
         return response_token_expired
-
 
 
 
@@ -767,6 +731,8 @@ class DeleteComment(APIView):
 # TASKSOLUTION CRUD
 #
 #
+
+#create
 class CreateSolution(APIView):
     serializer_class = SolutionSerializer
     def post(self, request, format=json, *args, **kwargs):
