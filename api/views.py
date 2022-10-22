@@ -1073,7 +1073,7 @@ class ApplicateToCourse(APIView):
                 request_body['student'] = user_instance.pk
                 serializer = CourseApplicationSerializer(data=request_body)
                 return create_or_update('create', serializer)
-            return response(
+            return Response(
                 {
                     "Error": "You are already applied to this course."
                 }, status=status.HTTP_403_FORBIDDEN
