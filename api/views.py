@@ -1,16 +1,12 @@
-from http.client import FORBIDDEN
 import json
-from turtle import update
-from types import NoneType
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound
 import datetime
-
 from django.contrib.auth.hashers import make_password
 
 # average course grade
@@ -186,10 +182,10 @@ def created_updated_responses(created_or_updated, serializer):
 def create_or_update(create_or_update, serializer):
     if serializer.is_valid():
         serializer.save()
-        return created_updated_responses(create_or_update)
+        return created_updated_responses(create_or_update, serializer)
     return serializer.errors()
 
-def delete_instance(instance_pk, instance_model):
+def delete_instance(instance_model, instance_pk):
     instance = get_object_or_404(
         instance_model,
         pk=instance_pk
@@ -243,17 +239,22 @@ def is_author_or_applied(request, course_pk):
     token = get_jwt_token(request)
     user = get_user_email(token)
 
-    user_instance = MyUser.objects.get(
-        email=user
-    )
+    try:
+        user_instance = MyUser.objects.get(email=user)
+    except MyUser.DoesNotExist:
+        user_instance = None
 
-    application = CourseApplication.objects.get(
-        student=user_instance,
-        course=course_pk
-    )
+    try:
+        application = CourseApplication.objects.get(
+            student=user_instance,
+            course=course_pk
+        )
+    except CourseApplication.DoesNotExist:
+        application = None
 
-    if is_course_author(user, course_pk) or application.exists():
-        return True
+    if user_instance != None:
+        if is_course_author(user, course_pk) or application != None:
+            return True
     return False
 
 
@@ -337,7 +338,7 @@ class DeleteUser(APIView):
         )
 
         if user == user_instance.email:
-            return delete_instance(user_pk, MyUser)
+            return delete_instance(MyUser, user_pk)
         return response_forbidden()
 
 
@@ -375,11 +376,11 @@ class ViewCourse(APIView):
     def get(self, request, format=None, *args, **kwargs):
         course_pk = kwargs.get('course_pk', None)
 
+        print('TYPE OF REQUEST 1 =', type(request))
         token = get_jwt_token(request)
-        user  = get_user_email(token)
 
         if token_is_valid(token):
-            if is_author_or_applied(user, course_pk):
+            if is_author_or_applied(request, course_pk):
                 course_pk = kwargs.get('course_pk')
                 return get_instance_info(Course, course_pk)
             return response_forbidden()
@@ -411,7 +412,7 @@ class DeleteCourse(APIView):
         user  = get_user_email(token)
 
         if is_course_author(user, course_pk):
-            return delete_instance(course_pk, Course)
+            return delete_instance(Course, course_pk)
         return response_forbidden()
 
 
@@ -427,10 +428,11 @@ class CreateChapter(APIView):
         course_pk = kwargs.get('course_pk', None)
 
         token = get_jwt_token(request)
+        user  = get_user_email(token)
 
         if token != None:
             if token_is_valid(token):
-                if is_course_author(request, course_pk):
+                if is_course_author(user, course_pk):
                     request_body = request.data
                     request_body['course'] = course_pk
                     serializer = ChapterSerializer(data=request_body)
@@ -445,10 +447,9 @@ class ListAllChapters(APIView):
         course_pk = kwargs.get('course_pk', None)
 
         token = get_jwt_token(request)
-        user  = get_user_email(token)
 
         if token_is_valid(token):
-            if is_author_or_applied(user, course_pk):
+            if is_author_or_applied(request, course_pk):
                 chapters = Chapter.objects.filter(course=course_pk)
                 serializer = ChapterSerializer(chapters, many=True)
                 return Response(serializer.data)
@@ -465,7 +466,7 @@ class ViewChapter(APIView):
         user  = get_user_email(token)
 
         if token_is_valid(token):
-            if is_author_or_applied(user, course_pk):
+            if is_author_or_applied(request, course_pk):
                 return get_instance_info(Chapter, chapter_pk)
             return response_forbidden()
         return response_token_expired()
@@ -522,7 +523,7 @@ class CreateLecture(APIView):
         token = get_jwt_token(request)
         user  = get_user_email(token)
 
-        if is_course_author(request, course_pk):
+        if is_course_author(user, course_pk):
             if token_is_valid(token):
                 request_body = request.data
                 request_body['chapter'] = chapter_pk
@@ -537,10 +538,9 @@ class ListAllLectures(APIView):
         course_pk = kwargs.get('course_pk')
 
         token = get_jwt_token(request)
-        user  = get_user_email(token)
 
         if token_is_valid(token):
-            if is_author_or_applied(user, course_pk):
+            if is_author_or_applied(request, course_pk):
                 chapter_pk = kwargs.get('chapter_pk')
                 lectures = Lecture.objects.filter(chapter=chapter_pk)
                 serializer = LectureSerializer(lectures, many=True)
@@ -554,10 +554,9 @@ class ViewLecture(APIView):
         course_pk = kwargs.get('course_pk')
 
         token = get_jwt_token(request)
-        user  = get_user_email(token)
 
         if token_is_valid(token):
-            if is_author_or_applied(user, course_pk):
+            if is_author_or_applied(request, course_pk):
                 lecture_pk = kwargs.get('lecture_pk')
                 return get_instance_info(Lecture, lecture_pk)
             return response_forbidden
@@ -640,10 +639,9 @@ class GetLectureFileImage(APIView):
         file_pk     = kwargs.get('file_pk', None)
 
         token = get_jwt_token(request)
-        user  = get_user_email(token)
 
         if token_is_valid(token):
-            if is_author_or_applied(user, course_pk):
+            if is_author_or_applied(request, course_pk):
                 if file_type == 'image':
                     return get_instance_info(LectureImage, file_pk)
                 elif file_type == 'file':
@@ -1118,7 +1116,7 @@ class ApproveApplication(APIView):
         application_pk  = kwargs.get('application_pk')
         
         token = get_jwt_token(request)
-        user = JWTAuthentication().get_user(token)
+        user  = get_user_email(token)
 
         application = get_object_or_404(
             CourseApplication,
@@ -1127,10 +1125,11 @@ class ApproveApplication(APIView):
 
         if token_is_valid(token):
             if is_course_author(user, course_pk):
-                request_body = {}
-                request_body['course']      = application.course.pk
-                request_body['student']     = application.student.pk
-                request_body['approved']    = True
+                request_body = {
+                    'course':   application.course.pk,
+                    'student':  application.student.pk,
+                    'approved': True
+                }
                 serializer = CourseApplicationSerializer(application, data=request_body)
                 return create_or_update('update', serializer)
             return response_forbidden()
@@ -1180,10 +1179,11 @@ class CountAverageCourseGrade(APIView):
             )
             if all_student_solutions.exists():
                 average_course_grade = all_student_solutions.aggregate(Avg('grade'))
-                request_body = {}
-                request_body['course']  = course_pk
-                request_body['student'] = student_pk
-                request_body['grade'] = average_course_grade.get('grade__avg')
+                request_body = {
+                    'course':  course_pk,
+                    'student': student_pk,
+                    'grade':   average_course_grade.get('grade__avg')
+                }
                 serializer = AverageCourseGradeSerializer(data=request_body)
                 return create_or_update('create', serializer)
             raise NotFound(detail="Error 404: page not found.", code=404)
