@@ -21,6 +21,4 @@
 #### TODO:
     1) настроить сохранение файлов в определенных папках
     2) swagger api
-    3) проверка токена на всех view
-    4) DRY principle (change views in api/views.py)
-    5) admin panel
+    3) admin panel
