@@ -147,16 +147,13 @@ def response_token_expired():
 # JWT TOKEN FUNCTIONS
 def get_jwt_token(request):
     header          = JWTAuthentication().get_header(request)
-    print('HEADER =================', header)
     if header == None:
-        print('YES!')
         return header
     raw_token       = JWTAuthentication().get_raw_token(header)
     validated_token = JWTAuthentication().get_validated_token(raw_token)
     return validated_token
 
 def get_user_email(token):
-    print('IM HERE.')
     if token != None:
         user = JWTAuthentication().get_user(token)
         return str(user)
@@ -243,7 +240,6 @@ def is_course_author(user, course_pk):
     return False
 
 def is_author_or_applied(request, course_pk):
-
     token = get_jwt_token(request)
     user = get_user_email(token)
 
