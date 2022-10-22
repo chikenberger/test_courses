@@ -183,7 +183,7 @@ def create_or_update(create_or_update, serializer):
     if serializer.is_valid():
         serializer.save()
         return created_updated_responses(create_or_update, serializer)
-    return serializer.errors()
+    return Response(serializer.errors)
 
 def delete_instance(instance_model, instance_pk):
     instance = get_object_or_404(
@@ -398,10 +398,15 @@ class UpdateCourse(APIView):
             Course,
             pk=course_pk
         )
-        if is_course_author(user, course_pk):
-            serializer = CourseSerializer(course, data=request.data)
-            return create_or_update('update', serializer)
-        return response_forbidden()
+
+        if token_is_valid(token):
+            if is_course_author(user, course_pk):
+                # request_body = course.data
+                # request_body
+                serializer = CourseSerializer(course, data=request.data)
+                return create_or_update('update', serializer)
+            return response_forbidden()
+        return response_token_expired()
 
 # delete course
 class DeleteCourse(APIView):
