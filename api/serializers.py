@@ -32,15 +32,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = MyUser
         fields = ('pk', 'email', 'password', 'is_teacher')
 
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = ('pk', 'email', 'is_teacher', 'courses')
-
-
-
-
 
 class SolutionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -104,6 +99,7 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = ('pk', 'name', 'author', 'chapters', 'applications', 'grades')
 
-
-
-
+class UnapprovedCourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ('pk', 'name', 'author')
