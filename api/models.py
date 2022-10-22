@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser, PermissionsMixin
 from .managers import MyUserManager
 from django.utils import timezone
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 
@@ -75,7 +76,13 @@ class Solution(models.Model):
     task    = models.ForeignKey(Task, null=True, related_name='solutions', on_delete=models.CASCADE)
     file    = models.FileField()
     student = models.EmailField(null=True)
-    grade   = models.SmallIntegerField(default=0)
+    grade   = models.SmallIntegerField(
+        default=0, 
+        validators = [
+            MaxValueValidator(10),
+            MinValueValidator(1)
+        ]
+    )
 
     def __str__(self):
         return self.student

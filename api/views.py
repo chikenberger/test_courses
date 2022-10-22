@@ -27,20 +27,28 @@ from .models import (
     AverageCourseGrade,
 )
 from .serializers import (
-    CourseSerializer,
     MyTokenObtainPairSerializer, 
     UserRegistrationSerializer,
     UserSerializer,
+    
     CourseSerializer,
+    CourseCreateSerializer,
+    UnapprovedCourseSerializer,
+
     ChapterSerializer,
+    ChapterCreateSerializer,
+    
     LectureSerializer,
+    LectureCreateSerializer,
     LectureImageSerializer,
     LectureFileSerializer,
+    
     TaskSerializer,
+    TaskCreateSerializer,
     SolutionSerializer,
     CommentSerializer,
+    
     CourseApplicationSerializer,
-    UnapprovedCourseSerializer,
     AverageCourseGradeSerializer,
 )
 
@@ -112,11 +120,6 @@ class ApiOverview(APIView):
             'delete average grade': 'api/courses/<int:course_pk>/grades/<int:student_pk>/delete/',
         }
         return Response(api_urls)
-
-
-class MyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = MyTokenObtainPairSerializer
-
 
 
 
@@ -275,11 +278,27 @@ def is_author_or_applied(request, course_pk):
 #
 #
 
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+
+
 #sign up
 class UserRegistrationView(APIView):
+    serializer_class = UserRegistrationSerializer
     def post(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
-        return create_or_update('create', serializer)
+        request_data = request.data.copy()
+        request_data['password'] = str(make_password(request_data['password']))
+        serializer = UserRegistrationSerializer(data=request_data)
+        if (serializer.is_valid()):
+            serializer.save()
+            return Response(
+                {
+                    "Message": "User created succesfully.",
+                    "User": serializer.data
+                }, status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors)
 
 #list all users
 class ListRequestedUsers(APIView):
@@ -305,6 +324,7 @@ class ViewUserInfo(APIView):
 
 #update
 class UpdateUser(APIView):
+    serializer_class = UserRegistrationSerializer
     def post(self, request, format=json, *args, **kwargs):
 
         token = get_jwt_token(request)
@@ -317,7 +337,7 @@ class UpdateUser(APIView):
         )
 
         if user == user_instance.email:
-            request_data = request.data
+            request_data = request.data.copy()
             request_data['password'] = str(make_password(request_data['password']))
 
             serializer = UserRegistrationSerializer(user_instance, data=request_data)
@@ -359,7 +379,7 @@ class CreateCourse(APIView):
             if token_is_valid(token):
                 request_body = request.data
                 request_body['author'] = user
-                serializer = CourseSerializer(data=request_body)
+                serializer = CourseCreateSerializer(data=request_body)
                 return create_or_update('create', serializer)
             return response_token_expired()
         return response_forbidden()
@@ -401,9 +421,10 @@ class UpdateCourse(APIView):
 
         if token_is_valid(token):
             if is_course_author(user, course_pk):
-                # request_body = course.data
-                # request_body
-                serializer = CourseSerializer(course, data=request.data)
+                request_data = request.data.copy()
+                request_data['author'] = user
+
+                serializer = CourseCreateSerializer(course, data=request_data)
                 return create_or_update('update', serializer)
             return response_forbidden()
         return response_token_expired()
@@ -440,7 +461,7 @@ class CreateChapter(APIView):
                 if is_course_author(user, course_pk):
                     request_body = request.data
                     request_body['course'] = course_pk
-                    serializer = ChapterSerializer(data=request_body)
+                    serializer = ChapterCreateSerializer(data=request_body)
                     return create_or_update('create', serializer)
                 return response_forbidden()
             return response_token_expired()
@@ -490,7 +511,7 @@ class UpdateChapter(APIView):
                 Chapter,
                 pk=chapter_pk
             )
-            serializer = ChapterSerializer(chapter, data=request.data)
+            serializer = ChapterCreateSerializer(chapter, data=request.data)
             return create_or_update('update', serializer)
         else:
             return response_forbidden()
@@ -532,7 +553,7 @@ class CreateLecture(APIView):
             if token_is_valid(token):
                 request_body = request.data
                 request_body['chapter'] = chapter_pk
-                serializer = LectureSerializer(data=request_body)
+                serializer = LectureCreateSerializer(data=request_body)
                 return create_or_update('create', serializer)
             return response_token_expired()
         return response_forbidden()
@@ -582,7 +603,7 @@ class UpdateLecture(APIView):
                     Lecture,
                     pk=lecture_pk
                 )
-                serializer = LectureSerializer(lecture, data=request.data)
+                serializer = LectureCreateSerializer(lecture, data=request.data)
                 return create_or_update('update', serializer)
             return response_forbidden()
         return response_token_expired()
@@ -629,10 +650,11 @@ class LectureAddFileImage(APIView):
 
                 if file_type == 'image':
                     serializer = LectureImageSerializer(data=request_body)
-                if file_type == 'file':
+                elif file_type == 'file':
                     serializer = LectureFileSerializer(data=request_body)
+                else:
+                    raise NotFound(detail="Error 404: page not found.", code=404)
 
-                serializer = LectureSerializer(data=request_body)
                 return create_or_update('create', serializer)
             return response_token_expired()
         return response_forbidden()
@@ -640,8 +662,8 @@ class LectureAddFileImage(APIView):
 class GetLectureFileImage(APIView):
     def get(self, request, format=json, *args, **kwargs):
         course_pk = kwargs.get('course_pk', None)
-        file_type   = kwargs.get('file_type', None)
-        file_pk     = kwargs.get('file_pk', None)
+        file_type = kwargs.get('file_type', None)
+        file_pk   = kwargs.get('file_pk', None)
 
         token = get_jwt_token(request)
 
@@ -720,7 +742,7 @@ class CreateTask(APIView):
             if is_course_author(user, course_pk):
                 request_body = request.data
                 request_body['chapter'] = chapter_pk
-                serializer = TaskSerializer(data=request_body)
+                serializer = TaskCreateSerializer(data=request_body)
                 return create_or_update('create', serializer)
             return response_forbidden()
         return response_token_expired()
@@ -772,7 +794,7 @@ class UpdateTask(APIView):
                     Task,
                     pk=task_pk
                 )
-                serializer = TaskSerializer(task, data=request.data)
+                serializer = TaskCreateSerializer(task, data=request.data)
                 return create_or_update('update', serializer)
             return response_forbidden()
         return response_token_expired()
@@ -1163,7 +1185,7 @@ class DeleteApplication(APIView):
 #
 
 class CountAverageCourseGrade(APIView):
-    def get(self, request, format=json, *args, **kwargs):
+    def post(self, request, format=json, *args, **kwargs):
         course_pk   = kwargs.get('course_pk', None)
         student_pk  = kwargs.get('student_pk', None)
 
@@ -1206,7 +1228,7 @@ class GetAverageCourseGrade(APIView):
             MyUser,
             pk=student_pk
         )
-        if user == student.email:
+        if user == student.email or is_course_author(user, course_pk):
             course_grade = get_object_or_404(
                 AverageCourseGrade,
                 course=course_pk,
@@ -1225,7 +1247,7 @@ class GetAllStudentsCourseGrades(APIView):
 
         if token_is_valid(token):
             if is_course_author(user, course_pk):
-                all_students_solutions = Solution.objects.filter(course=course_pk)
+                all_students_solutions = AverageCourseGrade.objects.filter(course=course_pk)
                 serializer = AverageCourseGradeSerializer(all_students_solutions, many=True)
                 return Response(serializer.data)
             return response_forbidden()
@@ -1234,18 +1256,13 @@ class GetAllStudentsCourseGrades(APIView):
 class DeleteAverageGrade(APIView):
     def post(self, request, format=json, *args, **kwargs):
         course_pk   = kwargs.get('course_pk')
-        student_pk  = kwargs.get('student_pk')
+        grade_pk    = kwargs.get('grade_pk')
 
         token = get_jwt_token(request)
         user  = get_user_email(token)
 
-        course_grade = get_object_or_404(
-            AverageCourseGrade,
-            course=course_pk,
-            student=student_pk
-        )
         if token_is_valid(token):
             if is_course_author(user, course_pk):
-                return delete_instance(AverageCourseGrade, course_grade.pk)
+                return delete_instance(AverageCourseGrade, grade_pk)
             return response_forbidden()
         return response_token_expired()

@@ -116,6 +116,6 @@ urlpatterns = [
         views.CountAverageCourseGrade.as_view(), name='count-course-grade'),
     path('courses/<int:course_pk>/grades/', \
         views.GetAllStudentsCourseGrades.as_view(), name='all-students-course-grade'),
-    path('courses/<int:course_pk>/grades/<int:student_pk>/delete/', \
+    path('courses/<int:course_pk>/grades/<int:grade_pk>/delete/', \
         views.DeleteAverageGrade.as_view(), name='delete-average-grade'),
 ]
