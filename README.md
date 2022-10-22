@@ -4,6 +4,13 @@
 - Django
 - Django Rest Framework
 - Docker
+##### Dotenv (кинуть в папку test_courses):
+    PG_HOST=db
+    PG_DATABASE=postgres
+    PG_USERNAME=postgres
+    PG_PASSWORD=docker
+
+
 ##### Инструкция для запуска:
     MAC OS / Linux(Ubuntu/Debian):
           1) устанавливаем docker-compose
