@@ -30,17 +30,12 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
-        fields = ('email', 'password', 'is_teacher')
-
+        fields = ('pk', 'email', 'password', 'is_teacher')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = ('pk', 'email', 'password', 'is_teacher', 'courses')
-
-
-
-
 
 class SolutionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,12 +47,21 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ('pk', 'date', 'author', 'text', 'is_course_author', 'task')
 
+
+
 class TaskSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True)
     solutions = SolutionSerializer(many=True)
     class Meta:
         model = Task
         fields = ('pk', 'name', 'text', 'deadline', 'chapter', 'comments', 'solutions')
+
+class TaskCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ('pk', 'name', 'text', 'deadline', 'chapter')
+
+
 
 
 class LectureImageSerializer(serializers.ModelSerializer):
@@ -77,6 +81,13 @@ class LectureSerializer(serializers.ModelSerializer):
         model = Lecture
         fields = ('pk', 'name', 'text', 'chapter', 'images', 'files')
 
+class LectureCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lecture
+        fields = ('pk', 'name', 'text', 'chapter')
+
+
+
 
 class ChapterSerializer(serializers.ModelSerializer):
     lectures = LectureSerializer(many=True)
@@ -84,6 +95,13 @@ class ChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
         fields = ('pk', 'course', 'name', 'lectures', 'tasks')
+
+class ChapterCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Chapter
+        fields = ('pk', 'course', 'name')
+
+
 
 
 class CourseApplicationSerializer(serializers.ModelSerializer):
@@ -96,6 +114,9 @@ class AverageCourseGradeSerializer(serializers.ModelSerializer):
         model = AverageCourseGrade
         fields = ('pk', 'course', 'student', 'grade')
 
+
+
+
 class CourseSerializer(serializers.ModelSerializer):
     chapters = ChapterSerializer(many=True)
     applications = CourseApplicationSerializer(many=True)
@@ -104,6 +125,16 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = ('pk', 'name', 'author', 'chapters', 'applications', 'grades')
 
+class CourseCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ('pk', 'name', 'author')
 
 
 
+
+
+class UnapprovedCourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ('pk', 'name', 'author')
