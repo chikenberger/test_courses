@@ -30,13 +30,13 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
-        fields = ('email', 'password', 'is_teacher')
+        fields = ('pk', 'email', 'password', 'is_teacher')
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
-        fields = ('pk', 'email', 'password', 'is_teacher', 'courses')
+        fields = ('pk', 'email', 'is_teacher', 'courses')
 
 
 
